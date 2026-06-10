@@ -93,15 +93,4 @@ export interface Notifikasi {
   targetRole: 'ALL' | 'WALI_MURID' | 'SISWA' | 'GURU';
 }
 
-export interface AbsensiSiswa {
-  id: string;
-  siswaId: string;
-  siswaName: string;
-  date: string;
-  timeIn: string;
-  method: 'QR_SCAN' | 'LOKASI';
-  status: 'HADIR' | 'IZIN' | 'ALFIT';
-  locationInfo?: string;
-}
-
 export type UserRole = 'ADMIN' | 'GURU' | 'WALI_MURID' | 'SISWA';

@@ -1,4 +1,4 @@
-import { Siswa, Teacher, Transaksi, BiayaOperasional, Schedule, MateriBelajar, Notifikasi, AbsensiSiswa } from '../types';
+import { Siswa, Teacher, Transaksi, BiayaOperasional, Schedule, MateriBelajar, Notifikasi } from '../types';
 
 export const INITIAL_SISWA: Siswa[] = [
   {
@@ -205,7 +205,7 @@ export const INITIAL_TRANSACTIONS: Transaksi[] = [
     amount: 750000,
     type: "SPP_MASUK",
     date: "2026-06-09",
-    payeeName: "Budi Santoso (Wali Hendra S.)",
+    payeeName: "Budi Santoso (Wali Hendra Santoso)",
     status: "LUNAS",
     notes: "Pembayaran SPP Juni 12 SMA"
   },
@@ -469,29 +469,6 @@ export const INITIAL_NOTIFIKASI: Notifikasi[] = [
     timestamp: "2026-06-08T10:15:00Z",
     read: true,
     targetRole: "SISWA"
-  }
-];
-
-export const INITIAL_ABSENSI_LOGS: AbsensiSiswa[] = [
-  { 
-    id: "ABS-101", 
-    siswaId: "SIS-2023-001", 
-    siswaName: "Budi Santoso", 
-    date: "2026-06-10", 
-    timeIn: "07:45", 
-    method: "QR_SCAN", 
-    status: "HADIR", 
-    locationInfo: "Sudirman HQ - Terminal #1" 
-  },
-  { 
-    id: "ABS-102", 
-    siswaId: "SIS-2023-014", 
-    siswaName: "Siti Aminah", 
-    date: "2026-06-10", 
-    timeIn: "07:38", 
-    method: "LOKASI", 
-    status: "HADIR", 
-    locationInfo: "Sudirman HQ - Radius 12m" 
   }
 ];
 
