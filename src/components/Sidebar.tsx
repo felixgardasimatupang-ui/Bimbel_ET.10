@@ -17,21 +17,29 @@ interface SidebarProps {
   siswaCount: number;
   materiCount: number;
   quizCount: number;
-  onSyncClick: () => void;
+  userName: string;
 }
 
 export default function Sidebar({
   activeTab, setActiveTab, currentUserRole, setCurrentUserRole,
   offlineMode, toggleOfflineMode, isSyncing, pendingSyncCount, syncLogs,
-  siswaCount, materiCount, quizCount, onSyncClick
+  siswaCount, materiCount, quizCount, userName
 }: SidebarProps) {
+
+  const handleNavKeyDown = (e: React.KeyboardEvent, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses') => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setActiveTab(tab);
+    }
+  };
 
   const navItem = (id: string, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses', icon: React.ReactNode, label: string, badge?: React.ReactNode) => (
     <button
       id={`nav_${id}`}
       onClick={() => setActiveTab(tab)}
+      onKeyDown={(e) => handleNavKeyDown(e, tab)}
       role="tab"
-      aria-current={activeTab === tab ? 'page' : undefined}
+      aria-selected={activeTab === tab}
       className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] font-medium transition-colors ${
         activeTab === tab
           ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-600 font-bold'
@@ -48,13 +56,13 @@ export default function Sidebar({
   );
 
   return (
-    <aside id="sidebar" className="w-56 bg-slate-900 flex flex-col shrink-0 text-slate-300 border-r border-slate-800">
+    <aside id="sidebar" aria-label="Panel navigasi samping" className="w-56 bg-slate-900 flex flex-col shrink-0 text-slate-300 border-r border-slate-800">
       <div id="sidebar_header" className="p-4 border-b border-slate-800 flex items-center gap-2">
         <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white relative shadow-sm">
           <Award className="w-5 h-5 text-white" />
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-bold text-white leading-tight">EduAdmin Bimbel</span>
+          <h1 className="text-sm font-bold text-white leading-tight">EduAdmin Bimbel</h1>
           <span className="text-[10px] opacity-60">Admin Les Khusus v2.6</span>
         </div>
       </div>
@@ -81,7 +89,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav id="sidebar_nav" className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+      <nav id="sidebar_nav" aria-label="Panel Navigasi Utama" className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         <div className="text-[9px] font-semibold text-slate-500 uppercase px-2 mb-1 tracking-wider">Dashboard Utama</div>
 
         {navItem('ringkasan', 'ringkasan', <Cpu className="w-3.5 h-3.5" />, 'Ringkasan Performa')}
@@ -100,6 +108,9 @@ export default function Sidebar({
         <button
           id="nav_hak_akses"
           onClick={() => setActiveTab('hak_akses')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('hak_akses'); } }}
+          role="tab"
+          aria-selected={activeTab === 'hak_akses'}
           className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] font-medium transition-colors ${
             activeTab === 'hak_akses'
               ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-600 font-bold'
@@ -115,6 +126,8 @@ export default function Sidebar({
         <button
           id="nav_sync"
           onClick={toggleOfflineMode}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOfflineMode(); } }}
+          aria-label={offlineMode ? 'Aktifkan mode online' : 'Aktifkan mode offline'}
           className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] font-medium transition-colors hover:bg-slate-800 text-slate-300"
         >
           <div className="flex items-center gap-2">
@@ -146,7 +159,7 @@ export default function Sidebar({
           {currentUserRole[0]}
         </div>
         <div className="flex flex-col overflow-hidden">
-          <span className="text-[11px] font-semibold text-white truncate">Felix Simatupang</span>
+          <span className="text-[11px] font-semibold text-white truncate">{userName}</span>
           <span className="text-[9px] text-slate-400 font-mono truncate">{currentUserRole} - Bimbel HQ</span>
         </div>
       </div>

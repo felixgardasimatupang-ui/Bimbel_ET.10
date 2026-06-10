@@ -26,7 +26,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   render(): React.ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="flex items-center justify-center h-screen bg-slate-50" role="alert" aria-live="assertive">
           <div className="bg-white p-8 rounded-lg border border-red-200 shadow-sm max-w-md text-center">
             <div className="text-red-500 text-4xl mb-4">⚠</div>
             <h2 className="text-sm font-bold text-slate-800 mb-2">Terjadi Kesalahan Tidak Terduga</h2>
@@ -41,7 +41,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
                 Coba Lagi
               </button>
               <button
-                onClick={() => { localStorage.clear(); window.location.reload(); }}
+                onClick={() => { Object.keys(localStorage).filter(k => k.startsWith('edu_')).forEach(k => localStorage.removeItem(k)); window.location.reload(); }}
                 className="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700"
               >
                 Reset Semua Data

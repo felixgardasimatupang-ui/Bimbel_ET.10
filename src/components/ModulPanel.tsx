@@ -30,13 +30,15 @@ interface ModulPanelProps {
   onSubmitQuiz: () => void;
   onCloseQuiz: () => void;
   currentUserRole: string;
+  activeStudentName: string;
 }
 
 export default function ModulPanel({
   filteredMateris, materiSearch, setMateriSearch, materiSubjectFilter, setMateriSubjectFilter,
   newMateriOpen, setNewMateriOpen, formDataMateri, setFormDataMateri, onAddMateri, onDownload,
   quizzes, activeQuizPlay, quizAnswers, quizResult,
-  onStartQuiz, onSelectAnswer, onSubmitQuiz, onCloseQuiz, currentUserRole
+  onStartQuiz, onSelectAnswer, onSubmitQuiz, onCloseQuiz, currentUserRole,
+  activeStudentName
 }: ModulPanelProps) {
   return (
     <div id="panel_modul" className="space-y-4 flex flex-col flex-1">
@@ -232,7 +234,7 @@ export default function ModulPanel({
             )}
           </div>
           <div className="p-2 border-t mt-3.5 bg-slate-50 font-mono text-[9px] text-slate-400">
-            Siswa teraktif saat ini: <b>Budi Santoso</b> (+2 kuis terselesaikan)
+            Siswa teraktif saat ini: <b>{activeStudentName}</b>
           </div>
         </div>
       </div>

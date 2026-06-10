@@ -50,4 +50,26 @@ describe('usePersistedState', () => {
     act(() => { result.current[1]({ a: 2, b: 'world' }); });
     expect(JSON.parse(localStorage.getItem('obj_key') || '{}')).toEqual({ a: 2, b: 'world' });
   });
+
+  it('syncs value when storage event fires from another tab', () => {
+    const { result } = renderHook(() => usePersistedState('sync_key', 'default'));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'sync_key',
+        newValue: '"synced-value"',
+      }));
+    });
+    expect(result.current[0]).toBe('synced-value');
+  });
+
+  it('ignores storage event for different key', () => {
+    const { result } = renderHook(() => usePersistedState('my_key', 'original'));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'other_key',
+        newValue: '"should-ignore"',
+      }));
+    });
+    expect(result.current[0]).toBe('original');
+  });
 });

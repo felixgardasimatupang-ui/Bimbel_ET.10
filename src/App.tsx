@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense, FormEvent } from 'react';
-import { RefreshCw } from 'lucide-react';
-
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, FormEvent } from 'react';
 import {
   INITIAL_SISWA, INITIAL_TEACHERS, INITIAL_TRANSACTIONS,
-  INITIAL_BIAYA_OPERASIONAL, INITIAL_SCHEDULES, INITIAL_MATERI,
+  INITIAL_SCHEDULES, INITIAL_MATERI,
   INITIAL_QUIZZES, INITIAL_NOTIFIKASI
 } from './data/mockData';
 import type { InteractiveQuiz } from './data/mockData';
@@ -12,6 +10,7 @@ import type {
 } from './types';
 
 import { usePersistedState } from './hooks/usePersistedState';
+import { validateEmail, sanitizeCSV } from './utils/validation';
 import Toast from './components/Toast';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -26,6 +25,9 @@ const ModulPanel = lazy(() => import('./components/ModulPanel'));
 const HakAksesPanel = lazy(() => import('./components/HakAksesPanel'));
 
 type ActiveTab = 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses';
+
+const GPS_DEFAULT = { lat: -6.2088, lon: 106.8456 } as const;
+const APP_USER_NAME = 'Felix Simatupang';
 
 const createId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -104,6 +106,10 @@ export default function App() {
     setSyncLogs((prev) => [`[${time}] ${action}`, ...prev.slice(0, 8)]);
   }, []);
 
+  const trackOfflineChange = useCallback(() => {
+    if (offlineMode) setPendingSyncCount((prev) => prev + 1);
+  }, [offlineMode]);
+
   const requireRole = useCallback((allowedRoles: UserRole[], action: string): boolean => {
     if (!allowedRoles.includes(currentUserRole)) {
       triggerToast(`Akses ditolak. Hanya ${allowedRoles.join(' / ')} yang dapat ${action}.`, 'warn');
@@ -111,6 +117,18 @@ export default function App() {
     }
     return true;
   }, [currentUserRole, triggerToast]);
+
+  const rateLimitTimers = useRef<Record<string, number>>({});
+  const checkRateLimit = useCallback((key: string, ms = 500): boolean => {
+    const now = Date.now();
+    const last = rateLimitTimers.current[key] ?? 0;
+    if (now - last < ms) {
+      triggerToast('Operasi terlalu cepat. Silakan tunggu.', 'warn');
+      return false;
+    }
+    rateLimitTimers.current[key] = now;
+    return true;
+  }, [triggerToast]);
 
   const triggerAutomatedSPPNotification = useCallback(() => {
     if (!requireRole(['ADMIN'], 'mengirim pengingat SPP')) return;
@@ -161,12 +179,6 @@ export default function App() {
     }, 1500);
   }, [triggerToast, addSyncLog]);
 
-  const sanitizeCSV = (val: string) => {
-    if (/^[=+\-@]/.test(val)) return `'${val}`;
-    if (val.includes('"') || val.includes(',') || val.includes('\n')) return `"${val.replace(/"/g, '""')}"`;
-    return val;
-  };
-
   const exportToCSV = useCallback(() => {
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'ID Siswa,Nama Lengkap,Kelas,Rata-rata Nilai,Persentase Kehadiran,Status SPP,Wali Murid\n';
@@ -184,10 +196,9 @@ export default function App() {
     addSyncLog('Exported student database performance file to Local CSV format.');
   }, [siswas, triggerToast, addSyncLog]);
 
-  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
   const handleAddSiswa = useCallback((e: FormEvent) => {
     e.preventDefault();
+    if (!checkRateLimit('addSiswa')) return;
     if (!requireRole(['ADMIN', 'GURU'], 'mendaftarkan siswa')) return;
     if (!formDataSiswa.name || !formDataSiswa.email) {
       triggerToast('Nama Lengkap dan Surel Siswa wajib diisi!', 'warn');
@@ -224,10 +235,12 @@ export default function App() {
     setFormDataSiswa({ name: '', classLevel: '12 SMA - IPA', email: '', parentName: '', parentEmail: '', sppAmount: 750000 });
     triggerToast(`Siswa ${newStudent.name} sukses didaftarkan!`, 'success');
     addSyncLog(`Registered new student ${newStudent.name} with unique QR identifier.`);
-  }, [formDataSiswa, setSiswas, triggerToast, addSyncLog]);
+    trackOfflineChange();
+  }, [formDataSiswa, setSiswas, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
   const handleAddMateri = useCallback((e: FormEvent) => {
     e.preventDefault();
+    if (!checkRateLimit('addMateri')) return;
     if (!requireRole(['ADMIN', 'GURU'], 'mengunggah materi')) return;
     if (!formDataMateri.title) {
       triggerToast('Judul materi belajar tidak boleh kosong!', 'warn');
@@ -251,9 +264,11 @@ export default function App() {
     setFormDataMateri({ title: '', subject: 'Matematika', targetLevel: '12 SMA', type: 'PDF', isLocked: false });
     triggerToast(`Materi "${newMat.title}" berhasil diunggah dan terindeks!`, 'success');
     addSyncLog(`Uploaded new learning topic: "${newMat.title}" locked state: ${newMat.isLocked}`);
-  }, [formDataMateri, currentUserRole, setMateris, triggerToast, addSyncLog]);
+    trackOfflineChange();
+  }, [formDataMateri, currentUserRole, setMateris, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
   const simulateCheckinSiswa = useCallback((siswaId: string, checkInMethod: 'QR_SCAN' | 'LOKASI') => {
+    if (!checkRateLimit('checkin', 300)) return;
     if (!requireRole(['ADMIN', 'GURU'], 'melakukan presensi')) return;
     const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     let studentName = 'Siswa';
@@ -264,15 +279,16 @@ export default function App() {
           ...student, locationCheckedIn: true, checkInTime: timeNow,
           performanceScore: Math.min(100, Math.round((student.performanceScore + 1.2) * 10) / 10),
           attendanceRate: Math.min(100, Math.round((student.attendanceRate + 2.5) * 10) / 10),
-          latitude: -6.2088 + (Math.random() - 0.5) * 0.0001,
-          longitude: 106.8456 + (Math.random() - 0.5) * 0.0001,
+          latitude: GPS_DEFAULT.lat + (Math.random() - 0.5) * 0.0001,
+          longitude: GPS_DEFAULT.lon + (Math.random() - 0.5) * 0.0001,
         };
       }
       return student;
     }));
     triggerToast(`Absensi terdeteksi via ${checkInMethod}! Jam: ${timeNow}. Poin performa ${studentName} meningkat (+1.2)!`, 'success');
     addSyncLog(`Student verified attendance using ${checkInMethod}: ${studentName}`);
-  }, [setSiswas, triggerToast, addSyncLog]);
+    trackOfflineChange();
+  }, [setSiswas, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
   const queryBrowserGeolocation = useCallback(() => {
     setGpsLoading(true);
@@ -285,14 +301,14 @@ export default function App() {
           addSyncLog(`Retrieved real geolocalization coordinates from client: ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
         },
         () => {
-          setGpsLocation({ lat: -6.2088, lon: 106.8456 });
+          setGpsLocation(GPS_DEFAULT);
           setGpsLoading(false);
           triggerToast('Otorisasi GPS dibatasi atau browser offline. Menggunakan koordinat HQ Bimbel Jakarta (+/- 5m).', 'info');
           addSyncLog('Simulated geolocation lock within school vicinity.');
         },
       );
     } else {
-      setGpsLocation({ lat: -6.2088, lon: 106.8456 });
+      setGpsLocation(GPS_DEFAULT);
       setGpsLoading(false);
       triggerToast('Akses geolokasi tidak didukung oleh browser ini.', 'warn');
     }
@@ -300,6 +316,7 @@ export default function App() {
 
   const handleSubmitTeacherEvaluation = useCallback((e: FormEvent) => {
     e.preventDefault();
+    if (!checkRateLimit('evalTeacher')) return;
     if (!requireRole(['ADMIN'], 'mengevaluasi pengajar')) return;
     if (!evalFeedback.trim()) {
       triggerToast('Catatan evaluasi tidak boleh kosong!', 'warn');
@@ -311,6 +328,7 @@ export default function App() {
       return;
     }
     const average = Math.round(((pedagogicalScore + professionalScore + socialScore) / 3) * 10) / 10;
+    const targetTch = teachers.find((t) => t.id === evalTeacherId);
     setTeachers((prev) => prev.map((t) => {
       if (t.id === evalTeacherId) {
         const newEval = {
@@ -325,11 +343,11 @@ export default function App() {
       }
       return t;
     }));
-    const targetTch = teachers.find((t) => t.id === evalTeacherId);
     triggerToast(`Evaluasi pengajar ${targetTch?.name} berhasil direkam ke database!`, 'success');
-    addSyncLog(`Submitted regular score review for ${targetTch?.name}. Avg: ${average}/5.0`);
+    addSyncLog(`Submitted regular score review for ${targetTch?.name}: Avg: ${average}/5.0`);
     setEvalFeedback('');
-  }, [evalTeacherId, pedagogicalScore, professionalScore, socialScore, evalFeedback, teachers, setTeachers, triggerToast, addSyncLog]);
+    trackOfflineChange();
+  }, [evalTeacherId, pedagogicalScore, professionalScore, socialScore, evalFeedback, teachers, setTeachers, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
   const handleStartQuiz = useCallback((quiz: InteractiveQuiz) => {
     setActiveQuizPlay(quiz);
@@ -342,7 +360,12 @@ export default function App() {
   }, []);
 
   const handleSubmitQuiz = useCallback(() => {
+    if (!checkRateLimit('submitQuiz')) return;
     if (!activeQuizPlay) return;
+    if (activeQuizPlay.questions.length === 0) {
+      triggerToast('Kuis tidak memiliki pertanyaan!', 'warn');
+      return;
+    }
     if (!selectedSiswaId) {
       triggerToast('Pilih siswa terlebih dahulu di panel Ringkasan!', 'warn');
       return;
@@ -368,10 +391,13 @@ export default function App() {
     }));
     triggerToast(`Kuis selesai! Nilai Siswa: ${calculatedScore}. Performa siswa di-update real-time.`, 'success');
     addSyncLog(`Student submitted interactive quiz test score ${calculatedScore}% for subject ${activeQuizPlay.subject}`);
-  }, [activeQuizPlay, quizAnswers, selectedSiswaId, setSiswas, triggerToast, addSyncLog]);
+    trackOfflineChange();
+  }, [activeQuizPlay, quizAnswers, selectedSiswaId, setSiswas, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
   const toggleSppPaymentStatus = useCallback((siswaId: string) => {
+    if (!checkRateLimit('toggleSpp')) return;
     if (!requireRole(['ADMIN'], 'mengubah status SPP')) return;
+    const targetStudent = siswas.find((s) => s.id === siswaId);
     setSiswas((prev) => prev.map((s) => {
       if (s.id === siswaId) {
         const nextStatus = s.sppStatus === 'LUNAS' ? 'BELUM_BAYAR' as const : 'LUNAS' as const;
@@ -395,10 +421,10 @@ export default function App() {
       }
       return s;
     }));
-    const targetStudent = siswas.find((s) => s.id === siswaId);
     triggerToast(`Status pembayaran SPP ${targetStudent?.name} disinkronkan berkala!`, 'info');
     addSyncLog(`Toggled invoice state to payment verification: ${targetStudent?.name}`);
-  }, [siswas, transactions, setSiswas, setTransactions, triggerToast, addSyncLog]);
+    trackOfflineChange();
+  }, [siswas, transactions, setSiswas, setTransactions, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
   const toggleOfflineMode = useCallback(() => {
     setOfflineMode((prev) => {
@@ -426,27 +452,27 @@ export default function App() {
     addSyncLog(`Generated unique QR reference session matching ${randCode}`);
   }, [triggerToast, addSyncLog]);
 
-  const filteredSiswas = siswas.filter((s) => {
+  const filteredSiswas = useMemo(() => siswas.filter((s) => {
     const matchesSearch = s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
       s.id.toLowerCase().includes(studentSearch.toLowerCase()) ||
       s.parentName.toLowerCase().includes(studentSearch.toLowerCase());
     const matchesClass = studentClassFilter === 'Semua' || s.classLevel.includes(studentClassFilter);
     return matchesSearch && matchesClass;
-  });
+  }), [siswas, studentSearch, studentClassFilter]);
 
-  const filteredMateris = materis.filter((m) => {
+  const filteredMateris = useMemo(() => materis.filter((m) => {
     const matchesSearch = m.title.toLowerCase().includes(materiSearch.toLowerCase()) ||
       m.author.toLowerCase().includes(materiSearch.toLowerCase());
     const matchesSub = materiSubjectFilter === 'Semua' || m.subject.toLowerCase() === materiSubjectFilter.toLowerCase();
     if (currentUserRole === 'SISWA' && m.isLocked) return false;
     return matchesSearch && matchesSub;
-  });
+  }), [materis, materiSearch, materiSubjectFilter, currentUserRole]);
 
-  const totalSPPExpected = siswas.reduce((sum, s) => sum + s.sppAmount, 0);
-  const totalSPPCollected = siswas.filter((s) => s.sppStatus === 'LUNAS').reduce((sum, s) => sum + s.sppAmount, 0);
-  const percentSPPCollected = totalSPPExpected > 0 ? Math.round((totalSPPCollected / totalSPPExpected) * 100) : 0;
+  const totalSPPExpected = useMemo(() => siswas.reduce((sum, s) => sum + s.sppAmount, 0), [siswas]);
+  const totalSPPCollected = useMemo(() => siswas.filter((s) => s.sppStatus === 'LUNAS').reduce((sum, s) => sum + s.sppAmount, 0), [siswas]);
+  const percentSPPCollected = useMemo(() => totalSPPExpected > 0 ? Math.round((totalSPPCollected / totalSPPExpected) * 100) : 0, [totalSPPCollected, totalSPPExpected]);
 
-  const performanceTrendData = [
+  const performanceTrendData = useMemo(() => [
     { name: 'Jan', RataNilai: 79, Kehadiran: 85, SPP_Pemasukan: 12000000 },
     { name: 'Feb', RataNilai: 82, Kehadiran: 90, SPP_Pemasukan: 15400000 },
     { name: 'Mar', RataNilai: 85, Kehadiran: 92, SPP_Pemasukan: 18900000 },
@@ -458,7 +484,12 @@ export default function App() {
       Kehadiran: siswas.length > 0 ? Math.round((siswas.reduce((acc, s) => acc + s.attendanceRate, 0) / siswas.length) * 10) / 10 : 0,
       SPP_Pemasukan: totalSPPCollected,
     },
-  ];
+  ], [siswas, totalSPPCollected]);
+
+  const activeStudentName = useMemo(() => {
+    if (siswas.length === 0) return 'Tidak Ada Siswa';
+    return [...siswas].sort((a, b) => b.performanceScore - a.performanceScore)[0].name;
+  }, [siswas]);
 
   const handleDownloadMateri = useCallback((id: string) => {
     const mat = materis.find((m) => m.id === id);
@@ -486,7 +517,7 @@ export default function App() {
           offlineMode={offlineMode} toggleOfflineMode={toggleOfflineMode}
           isSyncing={isSyncing} pendingSyncCount={pendingSyncCount} syncLogs={syncLogs}
           siswaCount={siswas.length} materiCount={materis.length} quizCount={quizzes.length}
-          onSyncClick={handleSyncData}
+          userName={APP_USER_NAME}
         />
 
         <main id="main_container" className="flex-1 flex flex-col overflow-hidden">
@@ -502,7 +533,16 @@ export default function App() {
               totalSPPCollected={totalSPPCollected} percentSPPCollected={percentSPPCollected}
             />
 
-            <Suspense fallback={<div className="flex-1 flex items-center justify-center text-xs text-slate-400 py-20">Memuat panel...</div>}>
+            <Suspense fallback={<div className="flex-1 animate-pulse space-y-3 p-4">
+              <div className="h-8 bg-slate-200 rounded w-1/3" />
+              <div className="h-4 bg-slate-200 rounded w-1/2" />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="h-24 bg-slate-200 rounded" />
+                <div className="h-24 bg-slate-200 rounded" />
+                <div className="h-24 bg-slate-200 rounded" />
+              </div>
+              <div className="h-64 bg-slate-200 rounded" />
+            </div>}>
               <ErrorBoundary key="ringkasan">
                 {activeTab === 'ringkasan' && (
                   <RingkasanPanel
@@ -546,7 +586,7 @@ export default function App() {
 
               <ErrorBoundary key="spp">
                 {activeTab === 'spp' && (
-                  <SppPanel siswas={siswas} transactions={transactions} />
+                  <SppPanel transactions={transactions} totalSPPCollected={totalSPPCollected} />
                 )}
               </ErrorBoundary>
 
@@ -564,6 +604,7 @@ export default function App() {
                     onStartQuiz={handleStartQuiz} onSelectAnswer={handleSelectQuizAnswer}
                     onSubmitQuiz={handleSubmitQuiz} onCloseQuiz={handleCloseQuiz}
                     currentUserRole={currentUserRole}
+                    activeStudentName={activeStudentName}
                   />
                 )}
               </ErrorBoundary>

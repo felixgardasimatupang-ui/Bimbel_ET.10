@@ -14,6 +14,8 @@ export default function Toast({ message, type }: ToastProps) {
   return (
     <div
       id="toast_banner"
+      role="alert"
+      aria-live="polite"
       className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-xl text-xs font-semibold tracking-wide transition-all border ${bgClass}`}
     >
       {type === 'success' && <CheckCircle className="w-4 h-4 text-white" />}

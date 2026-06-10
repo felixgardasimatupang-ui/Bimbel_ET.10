@@ -1,5 +1,6 @@
 import { Users, Clock } from 'lucide-react';
 import type { Teacher, Schedule } from '../types';
+import AvatarWithFallback from './AvatarWithFallback';
 
 interface PengajarPanelProps {
   teachers: Teacher[];
@@ -76,19 +77,19 @@ export default function PengajarPanel({
                   <div>
                     <label className="block text-[8px] text-slate-400 uppercase font-bold text-center">Pedagogis</label>
                     <input id="eval_pedagogic" type="number" min="1" max="5" value={pedagogicalScore}
-                      onChange={(e) => setPedagogicalScore(Number(e.target.value))}
+                      onChange={(e) => { const v = Math.min(5, Math.max(1, Number(e.target.value) || 1)); setPedagogicalScore(v); }}
                       className="w-full text-center p-1 bg-white border rounded text-xs" />
                   </div>
                   <div>
                     <label className="block text-[8px] text-slate-400 uppercase font-bold text-center">Profesional</label>
                     <input id="eval_professional" type="number" min="1" max="5" value={professionalScore}
-                      onChange={(e) => setProfessionalScore(Number(e.target.value))}
+                      onChange={(e) => { const v = Math.min(5, Math.max(1, Number(e.target.value) || 1)); setProfessionalScore(v); }}
                       className="w-full text-center p-1 bg-white border rounded text-xs" />
                   </div>
                   <div>
                     <label className="block text-[8px] text-slate-400 uppercase font-bold text-center">Sosial</label>
                     <input id="eval_social" type="number" min="1" max="5" value={socialScore}
-                      onChange={(e) => setSocialScore(Number(e.target.value))}
+                      onChange={(e) => { const v = Math.min(5, Math.max(1, Number(e.target.value) || 1)); setSocialScore(v); }}
                       className="w-full text-center p-1 bg-white border rounded text-xs" />
                   </div>
                 </div>
@@ -108,10 +109,12 @@ export default function PengajarPanel({
 
             <div className="mt-3 space-y-2">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Peringkat & Skor Guru Terpercaya</h4>
-              {teachers.map((t: Teacher) => (
+              {teachers.length === 0 ? (
+                <p className="text-[10px] text-slate-400 italic">Belum ada data pengajar.</p>
+              ) : teachers.map((t: Teacher) => (
                 <div key={t.id} className="p-2 border border-slate-100 rounded-lg bg-slate-100/50 text-xs flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <img src={t.avatar} alt={`Foto ${t.name}`} className="w-8 h-8 rounded-full object-cover bg-slate-200" />
+                    <AvatarWithFallback src={t.avatar} alt={`Foto ${t.name}`} className="w-8 h-8 rounded-full object-cover bg-slate-200 shrink-0" />
                     <div>
                       <span className="font-bold text-slate-800 block text-[11px]">{t.name}</span>
                       <span className="text-[9px] text-slate-400 font-mono block">Sub: {t.subjects.join(', ')}</span>

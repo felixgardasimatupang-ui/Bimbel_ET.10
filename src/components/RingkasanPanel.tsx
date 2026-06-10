@@ -4,9 +4,10 @@ import {
   CartesianGrid, Tooltip, Area
 } from 'recharts';
 import {
-  Sparkles, QrCode, MapPin, UserCheck, Lock, CheckCircle, AlertTriangle
+  Sparkles, QrCode, MapPin, UserCheck
 } from 'lucide-react';
 import type { Siswa, Notifikasi } from '../types';
+import AvatarWithFallback from './AvatarWithFallback';
 
 interface RingkasanPanelProps {
   siswas: Siswa[];
@@ -23,7 +24,7 @@ interface RingkasanPanelProps {
 
 export default function RingkasanPanel({
   siswas, notifs, selectedSiswaId, setSelectedSiswaId,
-  performanceTrendData, onSimulateCheckin, onToggleSpp, currentUserRole
+  performanceTrendData, onSimulateCheckin, onToggleSpp, currentUserRole: _currentUserRole
 }: RingkasanPanelProps) {
   const selectedSiswaObj = siswas.find((s: Siswa) => s.id === selectedSiswaId) || siswas[0] || null;
 
@@ -136,10 +137,10 @@ export default function RingkasanPanel({
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-12 md:col-span-4 bg-slate-50 rounded-lg p-3 border border-slate-100">
               <div className="flex items-center gap-3 mb-3">
-                <img
+                <AvatarWithFallback
                   src={selectedSiswaObj.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"}
                   alt={`Foto ${selectedSiswaObj.name}`}
-                  className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm bg-blue-100"
+                  className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm bg-blue-100 shrink-0"
                 />
                 <div>
                   <h4 className="text-xs font-bold text-slate-800">{selectedSiswaObj.name}</h4>
@@ -212,7 +213,7 @@ export default function RingkasanPanel({
                       <QrCode className="w-3.5 h-3.5 text-purple-600" />
                       <span>Batas Check-in Harian:</span>
                     </span>
-                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1 rounded">08:00 AM WIB</span>
+                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1 rounded">{selectedSiswaObj.checkInTime || '07:45'} WIB</span>
                   </div>
 
                   <div className="bg-white p-2 rounded border border-slate-100">

@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  Search, Plus, X, QrCode, MapPin, UserCheck, Target, Lock
+  Search, Plus, X, QrCode, MapPin, UserCheck, Target
 } from 'lucide-react';
 import type { Siswa, Schedule } from '../types';
+import AvatarWithFallback from './AvatarWithFallback';
 
 interface SiswaPanelProps {
   siswas: Siswa[];
@@ -36,11 +37,11 @@ interface SiswaPanelProps {
 }
 
 export default function SiswaPanel({
-  filteredSiswas, schedules, selectedSiswaId, setSelectedSiswaId,
+  filteredSiswas, schedules: _schedules, selectedSiswaId, setSelectedSiswaId,
   studentSearch, setStudentSearch, studentClassFilter, setStudentClassFilter,
   newSiswaOpen, setNewSiswaOpen, formDataSiswa, setFormDataSiswa, onAddSiswa,
   qrSession, onRegenerateQr, gpsLoading, gpsLocation, onGpsQuery,
-  onSimulateCheckin, onToggleSpp, currentUserRole
+  onSimulateCheckin, onToggleSpp, currentUserRole: _currentUserRole
 }: SiswaPanelProps) {
   return (
     <div id="panel_siswa" className="space-y-4 flex flex-col flex-1">
@@ -194,7 +195,7 @@ export default function SiswaPanel({
                 <MapPin className="w-3.5 h-3.5 text-red-500" />
                 <span>Koordinat Lokasi Kampus Les</span>
               </div>
-              <p className="text-[10px] text-slate-600 leading-normal mt-0.5">HQ Jakarta: <b>-6.2088 Latitude, 106.8456 Longitude</b>. Presensi GPS wajib diaktifkan oleh siswa di zona radius max 20 meter.</p>
+              <p className="text-[10px] text-slate-600 leading-normal mt-0.5">Lokasi: <b>{gpsLocation ? `${gpsLocation.lat.toFixed(4)}, ${gpsLocation.lon.toFixed(4)}` : '-6.2088, 106.8456 (HQ Jakarta)'}</b>. Presensi GPS wajib diaktifkan oleh siswa di zona radius max 20 meter.</p>
               <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200">
                 <button id="btn_gps_test" type="button" onClick={onGpsQuery} disabled={gpsLoading}
                   className="bg-white hover:bg-blue-100 border border-blue-300 px-2 py-0.5 rounded text-[10px] text-blue-700 font-bold flex items-center gap-1 transition">
@@ -254,7 +255,7 @@ export default function SiswaPanel({
                     <td className="p-3 font-mono font-bold text-slate-500">{student.id}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <img src={student.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} alt="" className="w-6 h-6 rounded-full object-cover shadow-sm" />
+                        <AvatarWithFallback src={student.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} alt={student.name} className="w-6 h-6 rounded-full object-cover shadow-sm shrink-0" />
                         <div>
                           <span className="font-semibold text-slate-800 block text-[11px]">{student.name}</span>
                           <span className="text-[9px] text-slate-400 block">{student.classLevel}</span>

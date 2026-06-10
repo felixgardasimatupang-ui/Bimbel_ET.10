@@ -14,6 +14,9 @@ export default function StatsStrip({ siswas, teachers, totalSPPCollected, percen
   const avgRating = teachers.length > 0
     ? (teachers.reduce((acc: number, t: Teacher) => acc + t.rating, 0) / teachers.length).toFixed(1)
     : '0.0';
+  const avgPerformance = siswas.length > 0
+    ? Math.round(siswas.reduce((acc: number, s: Siswa) => acc + s.performanceScore, 0) / siswas.length)
+    : 0;
 
   return (
     <div id="stats_strip" className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
@@ -23,7 +26,7 @@ export default function StatsStrip({ siswas, teachers, totalSPPCollected, percen
           <span className="text-xl font-bold font-mono text-slate-800 tracking-tight block mt-0.5">{siswas.length}</span>
         </div>
         <div className="flex items-center justify-between text-[10px] text-emerald-600 font-semibold mt-1">
-          <span>+12% Bulan ini</span>
+          <span>Rata-rata Nilai: {avgPerformance}</span>
           <Users className="w-3.5 h-3.5 text-blue-500" />
         </div>
       </div>

@@ -2,14 +2,11 @@ import { INITIAL_BIAYA_OPERASIONAL } from '../data/mockData';
 import type { Transaksi } from '../types';
 
 interface SppPanelProps {
-  siswas: { sppStatus: 'LUNAS' | 'BELUM_BAYAR'; sppAmount: number }[];
   transactions: Transaksi[];
+  totalSPPCollected: number;
 }
 
-export default function SppPanel({ siswas, transactions }: SppPanelProps) {
-  const totalSPPCollected = siswas.filter((s) => s.sppStatus === 'LUNAS').reduce((sum, s) => sum + s.sppAmount, 0);
-  const totalSPPExpected = siswas.reduce((sum, s) => sum + s.sppAmount, 0);
-  const percentSPPCollected = totalSPPExpected > 0 ? Math.round((totalSPPCollected / totalSPPExpected) * 100) : 0;
+export default function SppPanel({ transactions, totalSPPCollected }: SppPanelProps) {
   const totalOperationalCost = INITIAL_BIAYA_OPERASIONAL.reduce((sum, item) => sum + item.totalCost, 0);
   const costPerSiswaCalculated = INITIAL_BIAYA_OPERASIONAL.reduce((sum, b) => sum + b.siswaShare, 0);
 

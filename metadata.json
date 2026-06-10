@@ -2,10 +2,7 @@
   "name": "EduAdmin Bimbel",
   "description": "Sistem manajemen admin terpadu untuk bimbingan belajar (Bimbel) Les, mencakup data siswa, pengajar, wali murid, transaksi keuangan, visualisasi analitik, absensi QR & lokasi, materi belajar, dan evaluasi guru.",
   "requestFramePermissions": [
-    "camera",
     "geolocation"
   ],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "majorCapabilities": []
 }
