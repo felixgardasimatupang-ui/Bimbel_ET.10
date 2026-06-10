@@ -13,7 +13,26 @@ import { errorHandler } from './middleware/errorHandler.js';
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000', credentials: true }));
+
+const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+if (process.env.NODE_ENV === 'production') {
+  const hasWildcard = corsOrigins.some((o) => o.includes('*'));
+  if (hasWildcard) {
+    console.warn('[CORS] Wildcard origin detected in production — this is insecure. Remove "*" from CORS_ORIGIN.');
+  }
+}
+
+app.use(cors({
+  origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
+  credentials: true,
+}));
+
+console.log(`[CORS] Allowed origins: ${corsOrigins.join(', ')}`);
+
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_req, res) => {
