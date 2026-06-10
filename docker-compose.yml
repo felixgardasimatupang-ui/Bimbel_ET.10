@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: eduadmin
+      POSTGRES_PASSWORD: eduadmin_secret
+      POSTGRES_DB: eduadmin_bimbel
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eduadmin -d eduadmin_bimbel"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: "postgresql://eduadmin:eduadmin_secret@postgres:5432/eduadmin_bimbel"
+      JWT_ACCESS_SECRET: "eduadmin-access-secret-prod"
+      JWT_REFRESH_SECRET: "eduadmin-refresh-secret-prod"
+      CORS_ORIGIN: "http://localhost:3000"
+      NODE_ENV: "production"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run build && npm run preview"
+    ports:
+      - "3000:4173"
+    environment:
+      VITE_API_URL: "http://localhost:3001/api"
+    volumes:
+      - ./:/app
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

@@ -13,12 +13,14 @@ import { usePersistedState } from './hooks/usePersistedState';
 import { useToast } from './hooks/useToast';
 import { useSync } from './hooks/useSync';
 import { createId, validateEmail, sanitizeCSV, GPS_DEFAULT, APP_USER_NAME } from './utils/validation';
+import { useAuth } from './contexts/AuthContext';
 import { SiswaPanelProvider } from './contexts/SiswaPanelContext';
 import Toast from './components/Toast';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import StatsStrip from './components/StatsStrip';
 import ErrorBoundary from './components/ErrorBoundary';
+import LoginPage from './components/LoginPage';
 
 const RingkasanPanel = lazy(() => import('./components/RingkasanPanel'));
 const SiswaPanel = lazy(() => import('./components/SiswaPanel'));
@@ -30,6 +32,20 @@ const HakAksesPanel = lazy(() => import('./components/HakAksesPanel'));
 type ActiveTab = 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses';
 
 export default function App() {
+  const { user: authUser, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-pulse text-slate-400 text-sm">Memuat...</div>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return <LoginPage />;
+  }
+
   const { toast, triggerToast } = useToast();
   const {
     offlineMode, pendingSyncCount,

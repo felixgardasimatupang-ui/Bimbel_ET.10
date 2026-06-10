@@ -1,0 +1,59 @@
+import { Router, Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { authenticate } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
+
+const prisma = new PrismaClient();
+const router = Router();
+
+router.use(authenticate);
+
+router.get('/', async (req: Request, res: Response) => {
+  const userId = (req as any).user?.userId;
+  const role = (req as any).user?.role;
+
+  const where: any = {};
+  if (role === 'WALI_MURID' || role === 'SISWA') {
+    where.OR = [{ userId }, { targetRole: 'ALL' }, { targetRole: role }];
+  }
+
+  const data = await prisma.notification.findMany({
+    where,
+    orderBy: { timestamp: 'desc' },
+    take: 20,
+  });
+  res.json({ success: true, data });
+});
+
+router.post('/spp-reminder', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+  const students = await prisma.student.findMany({ where: { sppStatus: 'BELUM_BAYAR', active: true } });
+  if (students.length === 0) {
+    res.json({ success: true, message: 'Semua siswa telah membayar SPP' });
+    return;
+  }
+
+  const notifs = students.map((s) => ({
+    userId: null,
+    title: `Tagihan SPP: ${s.name}`,
+    message: `Pemberitahuan kepada Wali Murid ${s.parentName}, masa tenggang pembayaran SPP Rp ${s.sppAmount.toLocaleString('id-ID')} untuk siswa ${s.name} akan segera berakhir.`,
+    type: 'SPP_INFO',
+    targetRole: 'WALI_MURID',
+  }));
+
+  await prisma.notification.createMany({ data: notifs });
+  res.json({ success: true, message: `${students.length} pengingat SPP terkirim` });
+});
+
+router.post('/exam-reminder', requireRole('SUPER_ADMIN', 'ADMIN'), async (_req: Request, res: Response) => {
+  await prisma.notification.create({
+    data: {
+      title: 'PENGINGAT UJIAN: Evaluasi Tengah Semester',
+      message: 'Ujian simulasi UTBK Mandiri dijadwalkan lusa. Mohon seluruh siswa mengunduh lembar latihan di modul belajar kuis interaktif.',
+      type: 'UJIAN_INFO',
+      targetRole: 'ALL',
+    },
+  });
+  res.json({ success: true, message: 'Pengingat ujian terkirim' });
+});
+
+export default router;

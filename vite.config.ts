@@ -1,20 +1,23 @@
-/// <reference types="vitest/config" />
-import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig(() => {
-  return {
-    plugins: [react(), tailwindcss()],
-    server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
-    test: {
-      environment: 'jsdom',
-      globals: true,
-      setupFiles: './src/test/setup.ts',
-      css: true,
-    },
-  };
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    exclude: ['e2e/**', 'backend/**', 'node_modules/**'],
+  },
 });

@@ -1,0 +1,183 @@
+import { Router, Request, Response } from 'express';
+import { z } from 'zod';
+import { PrismaClient } from '@prisma/client';
+import { authenticate } from '../middleware/auth.js';
+import { requireRole } from '../middleware/rbac.js';
+import { validate } from '../middleware/validate.js';
+import { createAuditLog } from '../utils/audit.js';
+
+const prisma = new PrismaClient();
+const router = Router();
+
+const createSchema = z.object({
+  name: z.string().min(1, 'Nama wajib diisi'),
+  classLevel: z.string().min(1, 'Kelas wajib diisi'),
+  email: z.string().email('Email tidak valid'),
+  parentName: z.string().optional().default('Tidak Diketahui'),
+  parentEmail: z.string().optional().default(''),
+  sppAmount: z.number().int().positive('SPP harus lebih dari 0'),
+});
+
+router.use(authenticate);
+
+router.get('/', async (req: Request, res: Response) => {
+  const search = req.query.search as string | undefined;
+  const classFilter = req.query.classFilter as string | undefined;
+  const page = req.query.page as string || '1';
+  const limit = req.query.limit as string || '50';
+  const where: Record<string, unknown> = { active: true };
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { parentName: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+  if (classFilter && classFilter !== 'Semua') {
+    where.classLevel = { contains: classFilter, mode: 'insensitive' };
+  }
+
+  const pageNum = Math.max(1, parseInt(page));
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+  const [data, total] = await Promise.all([
+    prisma.student.findMany({
+      where: where as any,
+      include: { subjectsScore: true, progressHistory: true },
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
+      orderBy: { name: 'asc' },
+    }),
+    prisma.student.count({ where: where as any }),
+  ]);
+
+  res.json({
+    success: true,
+    data,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+    },
+  });
+});
+
+router.get('/:id', async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const student = await prisma.student.findUnique({
+    where: { id },
+    include: { subjectsScore: true, progressHistory: true, attendances: { take: 10, orderBy: { date: 'desc' } }, transactions: { take: 10, orderBy: { date: 'desc' } } },
+  });
+  if (!student) {
+    res.status(404).json({ success: false, error: 'Siswa tidak ditemukan' });
+    return;
+  }
+  res.json({ success: true, data: student });
+});
+
+router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSchema), async (req: Request, res: Response) => {
+  const { name, classLevel, email, parentName, parentEmail, sppAmount } = req.body;
+  const existing = await prisma.student.findUnique({ where: { email } });
+  if (existing) {
+    res.status(409).json({ success: false, error: 'Email siswa sudah terdaftar' });
+    return;
+  }
+
+  const student = await prisma.student.create({
+    data: {
+      name, classLevel, email, parentName, parentEmail, sppAmount,
+      qrCodeData: `QR-${name.replace(/\s+/g, '-').toUpperCase()}-${Date.now().toString().slice(-4)}`,
+      subjectsScore: {
+        create: [
+          { name: 'Matematika', score: 80 },
+          { name: 'Fisika', score: 80 },
+          { name: 'Kimia', score: 80 },
+          { name: 'B. Inggris', score: 80 },
+        ],
+      },
+      progressHistory: {
+        create: [
+          { month: 'Apr', score: 80, attendance: 100 },
+          { month: 'Mei', score: 80, attendance: 100 },
+        ],
+      },
+    },
+    include: { subjectsScore: true, progressHistory: true },
+  });
+
+  await createAuditLog({ userId: (req as any).user?.userId, action: 'CREATE', entity: 'student', entityId: student.id });
+
+  res.status(201).json({ success: true, data: student });
+});
+
+router.put('/:id/toggle-spp', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const student = await prisma.student.findUnique({ where: { id } });
+  if (!student) {
+    res.status(404).json({ success: false, error: 'Siswa tidak ditemukan' });
+    return;
+  }
+
+  const nextStatus = student.sppStatus === 'LUNAS' ? 'BELUM_BAYAR' : 'LUNAS';
+  const updated = await prisma.student.update({
+    where: { id },
+    data: { sppStatus: nextStatus },
+  });
+
+  if (nextStatus === 'LUNAS') {
+    const existingTx = await prisma.transaction.findFirst({
+      where: {
+        studentId: id,
+        type: 'SPP_MASUK',
+        date: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+      },
+    });
+    if (!existingTx) {
+      await prisma.transaction.create({
+        data: {
+          studentId: id,
+          amount: student.sppAmount,
+          type: 'SPP_MASUK',
+          payeeName: `${student.id} - ${student.name} (Wali ${student.parentName})`,
+          notes: 'SPP pembayaran instan via panel admin',
+        },
+      });
+    }
+  }
+
+  await createAuditLog({ userId: (req as any).user?.userId, action: 'UPDATE', entity: 'student', entityId: id, details: `SPP status changed to ${nextStatus}` });
+
+  res.json({ success: true, data: updated });
+});
+
+router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const method = (req.body as any)?.method || 'QR_SCAN';
+  const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+  const student = await prisma.student.update({
+    where: { id },
+    data: {
+      locationCheckedIn: true,
+      checkInTime: timeNow,
+      performanceScore: { increment: 1.2 },
+      attendanceRate: { increment: 2.5 },
+    },
+  });
+
+  await prisma.attendance.create({
+    data: {
+      studentId: id,
+      status: 'HADIR',
+      method,
+      checkInTime: timeNow,
+    },
+  });
+
+  await createAuditLog({ userId: (req as any).user?.userId, action: 'CHECKIN', entity: 'student', entityId: id });
+
+  res.json({ success: true, data: student });
+});
+
+export default router;

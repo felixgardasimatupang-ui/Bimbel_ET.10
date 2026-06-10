@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  FINANCE
+  GURU
+  SISWA
+  WALI_MURID
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(ADMIN)
+  avatar    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Student {
+  id              String   @id @default(cuid())
+  name            String
+  classLevel      String   @map("class_level")
+  email           String   @unique
+  parentName      String   @map("parent_name")
+  parentEmail     String   @map("parent_email")
+  sppAmount       Int      @map("spp_amount")
+  sppStatus       String   @default("BELUM_BAYAR") @map("spp_status")
+  performanceScore Float   @default(80) @map("performance_score")
+  attendanceRate  Float    @default(100) @map("attendance_rate")
+  qrCodeData      String   @map("qr_code_data")
+  avatar          String?
+  locationCheckedIn Boolean @default(false) @map("location_checked_in")
+  checkInTime     String?  @map("check_in_time")
+  latitude        Float?
+  longitude       Float?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  subjectsScore  SubjectScore[]
+  progressHistory ProgressHistory[]
+  attendances    Attendance[]
+  transactions   Transaction[]
+
+  @@map("students")
+}
+
+model SubjectScore {
+  id        String @id @default(cuid())
+  studentId String @map("student_id")
+  name      String
+  score     Float
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("subject_scores")
+}
+
+model ProgressHistory {
+  id         String @id @default(cuid())
+  studentId  String @map("student_id")
+  month      String
+  score      Float
+  attendance Float
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("progress_history")
+}
+
+model Teacher {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  subjects        String[]
+  rating          Float    @default(0)
+  attendanceRate  Float    @default(100) @map("attendance_rate")
+  evaluationScore Float    @default(0) @map("evaluation_score")
+  totalClasses    Int      @default(0) @map("total_classes")
+  activeStudents  Int      @default(0) @map("active_students")
+  avatar          String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  evaluations  Evaluation[]
+  schedules    Schedule[]
+
+  @@map("teachers")
+}
+
+model Evaluation {
+  id           String @id @default(cuid())
+  teacherId    String @map("teacher_id")
+  date         String
+  reviewer     String
+  pedagogical  Int
+  professional Int
+  social       Int
+  feedback     String
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@map("evaluations")
+}
+
+model Schedule {
+  id           String @id @default(cuid())
+  teacherId    String @map("teacher_id")
+  classTitle   String @map("class_title")
+  startTime    String @map("start_time")
+  endTime      String @map("end_time")
+  roomCode     String @map("room_code")
+  status       String @default("AKAN_DATANG")
+  teacherName  String @map("teacher_name")
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@map("schedules")
+}
+
+model Attendance {
+  id         String   @id @default(cuid())
+  studentId  String   @map("student_id")
+  date       DateTime @default(now())
+  status     String   @default("HADIR")
+  method     String   @default("QR_SCAN")
+  checkInTime String? @map("check_in_time")
+  latitude   Float?
+  longitude  Float?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("attendances")
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  amount    Int
+  type      String
+  date      DateTime @default(now())
+  status    String   @default("LUNAS")
+  notes     String?
+  payeeName String   @map("payee_name")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model Material {
+  id             String   @id @default(cuid())
+  title          String
+  subject        String
+  targetLevel    String   @map("target_level")
+  type           String   @default("PDF")
+  url            String   @default("#")
+  uploadDate     DateTime @default(now()) @map("upload_date")
+  downloadsCount Int      @default(0) @map("downloads_count")
+  author         String
+  isLocked       Boolean  @default(false) @map("is_locked")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("materials")
+}
+
+model QuizQuestion {
+  id           String @id @default(cuid())
+  text         String
+  options      String[]
+  correctIndex Int    @map("correct_index")
+  quizId       String @map("quiz_id")
+
+  quiz InteractiveQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_questions")
+}
+
+model InteractiveQuiz {
+  id          String   @id @default(cuid())
+  title       String
+  subject     String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  questions QuizQuestion[]
+
+  @@map("interactive_quizzes")
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String?  @map("user_id")
+  title      String
+  message    String
+  type       String   @default("INFO")
+  targetRole String   @map("target_role")
+  read       Boolean  @default(false)
+  timestamp  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  details   String?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
