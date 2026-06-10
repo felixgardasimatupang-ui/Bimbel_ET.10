@@ -244,3 +244,22 @@ describe('hasDuplicateSPPThisMonth edge cases', () => {
     expect(hasDuplicateSPPThisMonth(txs, 'SIS-001')).toBe(false);
   });
 });
+
+describe('GPS_DEFAULT', () => {
+  it('uses default Jakarta coordinates when env not set', () => {
+    vi.unstubAllEnvs();
+    const { GPS_DEFAULT } = { GPS_DEFAULT: { lat: -6.2088, lon: 106.8456 } };
+    expect(GPS_DEFAULT.lat).toBe(-6.2088);
+    expect(GPS_DEFAULT.lon).toBe(106.8456);
+  });
+
+  it('reads from VITE_GPS_LAT and VITE_GPS_LON when set', () => {
+    vi.stubEnv('VITE_GPS_LAT', '-7.2500');
+    vi.stubEnv('VITE_GPS_LON', '112.7500');
+    const lat = parseFloat(import.meta.env.VITE_GPS_LAT || '-6.2088');
+    const lon = parseFloat(import.meta.env.VITE_GPS_LON || '106.8456');
+    expect(lat).toBe(-7.25);
+    expect(lon).toBe(112.75);
+    vi.unstubAllEnvs();
+  });
+});

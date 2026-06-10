@@ -1,6 +1,6 @@
 import {
   ShieldCheck, Cpu, RefreshCw, Users, Calendar, DollarSign,
-  BookOpen, Wifi, WifiOff, Lock, Award
+  BookOpen, Wifi, WifiOff, Lock, Award, LogOut
 } from 'lucide-react';
 import type { UserRole } from '../types';
 
@@ -18,12 +18,13 @@ interface SidebarProps {
   materiCount: number;
   quizCount: number;
   userName: string;
+  onLogout: () => void;
 }
 
 export default function Sidebar({
   activeTab, setActiveTab, currentUserRole, setCurrentUserRole,
   offlineMode, toggleOfflineMode, isSyncing, pendingSyncCount, syncLogs,
-  siswaCount, materiCount, quizCount, userName
+  siswaCount, materiCount, quizCount, userName, onLogout
 }: SidebarProps) {
 
   const handleNavKeyDown = (e: React.KeyboardEvent, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses') => {
@@ -158,10 +159,18 @@ export default function Sidebar({
         <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-xs uppercase shadow-sm">
           {currentUserRole[0]}
         </div>
-        <div className="flex flex-col overflow-hidden">
+        <div className="flex flex-col overflow-hidden flex-1">
           <span className="text-[11px] font-semibold text-white truncate">{userName}</span>
           <span className="text-[9px] text-slate-400 font-mono truncate">{currentUserRole} - Bimbel HQ</span>
         </div>
+        <button
+          onClick={onLogout}
+          title="Keluar"
+          aria-label="Logout"
+          className="p-1 rounded hover:bg-red-800/30 text-slate-400 hover:text-red-400 transition"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </aside>
   );

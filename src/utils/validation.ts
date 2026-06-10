@@ -55,5 +55,12 @@ export const calculateQuizScore = (
 
 export const createId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
-export const APP_USER_NAME = 'Felix Simatupang';
-export const GPS_DEFAULT = { lat: -6.2088, lon: 106.8456 } as const;
+function getEnvNumber(key: string, fallback: number): number {
+  const val = import.meta.env[key];
+  return val ? parseFloat(val) : fallback;
+}
+
+export const GPS_DEFAULT = {
+  lat: getEnvNumber('VITE_GPS_LAT', -6.2088),
+  lon: getEnvNumber('VITE_GPS_LON', 106.8456),
+} as const;

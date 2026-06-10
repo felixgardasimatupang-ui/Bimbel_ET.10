@@ -105,12 +105,15 @@ Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + P
 
 - Division by zero: `totalSPPExpected` could be 0 (guarded with `> 0` check); `calculateQuizScore` guards empty questions
 - Form `required` attributes are bypassed by `e.preventDefault()` — use manual validation
-- User name from `APP_USER_NAME` constant in `App.tsx` (not hardcoded in sidebar)
+- User name from `authUser.name` (from JWT session, not hardcoded)
 - Server RBAC is enforced via middleware (`backend/src/middleware/rbac.ts`)
 - Frontend role selector in sidebar is for demo only — real roles come from JWT
-- All data stored in localStorage without encryption (migration to backend in progress)
+- Frontend still uses localStorage as fallback (panels not yet migrated to API calls)
 - Rate limiting on mutation handlers (500ms cooldown, 300ms for checkin)
 - No loading/empty/error states for async operations (except GPS)
-- `metadata.json` no longer claims Gemini API capability
+- `metadata.json` has empty `majorCapabilities` (Gemini claim removed)
 - Backend uses Zod v4 (latest) — `z.string()` etc still work the same
 - Default demo credentials: `admin@bimbel.edu` / `admin123`
+- GPS_DEFAULT is configurable via `VITE_GPS_LAT` / `VITE_GPS_LON` env vars
+- ErrorBoundary `localStorage.clear()` hanya menghapus key `edu_*` prefix
+- Sidebar has logout button that clears session tokens

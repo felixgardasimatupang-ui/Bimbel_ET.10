@@ -12,7 +12,7 @@ import type {
 import { usePersistedState } from './hooks/usePersistedState';
 import { useToast } from './hooks/useToast';
 import { useSync } from './hooks/useSync';
-import { createId, validateEmail, sanitizeCSV, GPS_DEFAULT, APP_USER_NAME } from './utils/validation';
+import { createId, validateEmail, sanitizeCSV, GPS_DEFAULT } from './utils/validation';
 import { useAuth } from './contexts/AuthContext';
 import { SiswaPanelProvider } from './contexts/SiswaPanelContext';
 import Toast from './components/Toast';
@@ -32,7 +32,7 @@ const HakAksesPanel = lazy(() => import('./components/HakAksesPanel'));
 type ActiveTab = 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses';
 
 export default function App() {
-  const { user: authUser, loading: authLoading } = useAuth();
+  const { user: authUser, loading: authLoading, logout } = useAuth();
 
   if (authLoading) {
     return (
@@ -480,7 +480,7 @@ export default function App() {
           offlineMode={offlineMode} toggleOfflineMode={toggleOfflineMode}
           isSyncing={isSyncing} pendingSyncCount={pendingSyncCount} syncLogs={syncLogs}
           siswaCount={siswas.length} materiCount={materis.length} quizCount={quizzes.length}
-          userName={APP_USER_NAME}
+          userName={authUser.name} onLogout={logout}
         />
 
         <main id="main_container" className="flex-1 flex flex-col overflow-hidden">
