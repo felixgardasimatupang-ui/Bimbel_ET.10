@@ -1,6 +1,6 @@
 import {
   ShieldCheck, Cpu, RefreshCw, Users, Calendar, DollarSign,
-  BookOpen, Wifi, WifiOff, Lock, Award, LogOut
+  BookOpen, Wifi, WifiOff, Lock, Award, LogOut, UserCheck
 } from 'lucide-react';
 import type { UserRole } from '../types';
 
@@ -8,7 +8,6 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses') => void;
   currentUserRole: UserRole;
-  setCurrentUserRole: (role: UserRole) => void;
   offlineMode: boolean;
   toggleOfflineMode: () => void;
   isSyncing: boolean;
@@ -22,7 +21,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
-  activeTab, setActiveTab, currentUserRole, setCurrentUserRole,
+  activeTab, setActiveTab, currentUserRole,
   offlineMode, toggleOfflineMode, isSyncing, pendingSyncCount, syncLogs,
   siswaCount, materiCount, quizCount, userName, onLogout
 }: SidebarProps) {
@@ -71,22 +70,15 @@ export default function Sidebar({
       <div id="role_control_panel" className="px-3 pt-3 pb-2 bg-slate-950/60 border-b border-slate-800/80">
         <div className="text-[9px] font-semibold text-slate-400 uppercase px-2 mb-1 flex items-center gap-1">
           <ShieldCheck className="w-3 h-3 text-emerald-400" />
-          <span>Kontrol Peran Aktif</span>
+          <span>Peran Aktif (JWT)</span>
         </div>
-        <select
-          id="role_selector"
-          value={currentUserRole}
-          onChange={(e) => setCurrentUserRole(e.target.value as UserRole)}
-          className="w-full text-[11px] px-2 py-1 bg-slate-800 text-white border border-slate-700 rounded font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="ADMIN">ADMINISTRATOR (Full)</option>
-          <option value="GURU">GURU / TUTOR (Akses Presensi & Materi)</option>
-          <option value="WALI_MURID">WALI MURID (Keuangan & Rapor Personal)</option>
-          <option value="SISWA">SISWA (Kuis, Lokasi & Modul Belajar)</option>
-        </select>
+        <div className="w-full text-[11px] px-2 py-1.5 bg-slate-800/50 text-white border border-slate-700/50 rounded font-medium flex items-center gap-2">
+          <UserCheck className="w-3.5 h-3.5 text-blue-400" />
+          <span>{currentUserRole}</span>
+        </div>
         <div className="mt-1 px-2 text-[9px] text-slate-500 font-mono flex items-center justify-between">
-          <span>Status:</span>
-          <span className="text-emerald-400 font-bold tracking-wider">SECURE_SSL</span>
+          <span>Status Auth:</span>
+          <span className="text-emerald-400 font-bold tracking-wider">JWT_ACTIVE</span>
         </div>
       </div>
 

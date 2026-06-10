@@ -1,3 +1,5 @@
+import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule } from '../types';
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 interface RequestOptions {
@@ -6,7 +8,12 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
-function getTokens() {
+interface Tokens {
+  access: string | null;
+  refresh: string | null;
+}
+
+function getTokens(): Tokens {
   try {
     const access = localStorage.getItem('edu_access_token');
     const refresh = localStorage.getItem('edu_refresh_token');
@@ -29,6 +36,7 @@ export function clearTokens() {
   try {
     localStorage.removeItem('edu_access_token');
     localStorage.removeItem('edu_refresh_token');
+    sessionStorage.removeItem('edu_crypto_key');
   } catch {
     // silently fail
   }
@@ -126,3 +134,71 @@ export async function registerApi(email: string, password: string, name: string)
 export async function getMe() {
   return apiRequest('/auth/me', { method: 'POST' });
 }
+
+// Students API
+export const StudentsApi = {
+  list: (params?: { search?: string; classFilter?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.classFilter) qs.set('classFilter', params.classFilter);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return apiRequest<{ data: Siswa[]; pagination: Record<string, unknown> }>(`/students${query ? `?${query}` : ''}`);
+  },
+  get: (id: string) => apiRequest<Siswa>(`/students/${id}`),
+  create: (data: Partial<Siswa>) => apiRequest<Siswa>('/students', { method: 'POST', body: data }),
+  toggleSpp: (id: string) => apiRequest<Siswa>(`/students/${id}/toggle-spp`, { method: 'PUT' }),
+  checkin: (id: string, method?: string) => apiRequest<Siswa>(`/students/${id}/checkin`, { method: 'PUT', body: { method: method || 'QR_SCAN' } }),
+};
+
+// Teachers API
+export const TeachersApi = {
+  list: () => apiRequest<{ data: Teacher[] }>('/teachers'),
+  evaluate: (id: string, data: { pedagogical: number; professional: number; social: number; feedback: string }) =>
+    apiRequest<Teacher>(`/teachers/evaluate/${id}`, { method: 'POST', body: data }),
+};
+
+// Finance API
+export const FinanceApi = {
+  transactions: (params?: { page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return apiRequest<{ data: Transaksi[]; pagination: Record<string, unknown> }>(`/finance/transactions${query ? `?${query}` : ''}`);
+  },
+  summary: () => apiRequest<{
+    totalExpected: number;
+    totalCollected: number;
+    percentCollected: number;
+    operationalCosts: Array<{ itemName: string; totalCost: number; siswaShare: number; category: string }>;
+    totalOperationalCost: number;
+  }>('/finance/summary'),
+  studentTransactions: (studentId: string) => apiRequest<Transaksi[]>(`/finance/students/${studentId}/transactions`),
+};
+
+// Materials API
+export const MaterialsApi = {
+  list: (params?: { search?: string; subjectFilter?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.subjectFilter) qs.set('subjectFilter', params.subjectFilter);
+    const query = qs.toString();
+    return apiRequest<{ data: MateriBelajar[] }>(`/materials${query ? `?${query}` : ''}`);
+  },
+  create: (data: Partial<MateriBelajar>) => apiRequest<MateriBelajar>('/materials', { method: 'POST', body: data }),
+  download: (id: string) => apiRequest<MateriBelajar>(`/materials/${id}/download`, { method: 'PUT' }),
+};
+
+// Notifications API
+export const NotificationsApi = {
+  list: () => apiRequest<{ data: Notifikasi[] }>('/notifications'),
+  sppReminder: () => apiRequest('/notifications/spp-reminder', { method: 'POST' }),
+  examReminder: () => apiRequest('/notifications/exam-reminder', { method: 'POST' }),
+};
+
+// Schedules API
+export const SchedulesApi = {
+  list: () => apiRequest<{ data: Schedule[] }>('/schedules'),
+};

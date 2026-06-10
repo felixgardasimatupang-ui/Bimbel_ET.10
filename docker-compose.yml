@@ -29,20 +29,22 @@ services:
       JWT_REFRESH_SECRET: "eduadmin-refresh-secret-prod"
       CORS_ORIGIN: "http://localhost:3000"
       NODE_ENV: "production"
+      SENTRY_DSN: "${SENTRY_DSN:-}"
     depends_on:
       postgres:
         condition: service_healthy
 
   frontend:
-    image: node:22-alpine
-    working_dir: /app
-    command: sh -c "npm ci && npm run build && npm run preview"
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "3000:4173"
+      - "3000:3000"
     environment:
-      VITE_API_URL: "http://localhost:3001/api"
-    volumes:
-      - ./:/app
+      VITE_API_URL: "/api"
+      VITE_SENTRY_DSN: "${SENTRY_DSN:-}"
+      VITE_GPS_LAT: "${VITE_GPS_LAT:--6.2088}"
+      VITE_GPS_LON: "${VITE_GPS_LON:-106.8456}"
     depends_on:
       - api
 
