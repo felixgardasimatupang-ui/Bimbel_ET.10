@@ -2,47 +2,18 @@ import React from 'react';
 import {
   Search, Plus, X, QrCode, MapPin, UserCheck, Target
 } from 'lucide-react';
-import type { Siswa, Schedule } from '../types';
+import type { Siswa } from '../types';
 import AvatarWithFallback from './AvatarWithFallback';
+import { useSiswaPanel } from '../contexts/SiswaPanelContext';
 
-interface SiswaPanelProps {
-  siswas: Siswa[];
-  filteredSiswas: Siswa[];
-  schedules: Schedule[];
-  selectedSiswaId: string;
-  setSelectedSiswaId: (id: string) => void;
-  studentSearch: string;
-  setStudentSearch: (val: string) => void;
-  studentClassFilter: string;
-  setStudentClassFilter: (val: string) => void;
-  newSiswaOpen: boolean;
-  setNewSiswaOpen: (val: boolean) => void;
-  formDataSiswa: {
-    name: string; classLevel: string; email: string;
-    parentName: string; parentEmail: string; sppAmount: number;
-  };
-  setFormDataSiswa: React.Dispatch<React.SetStateAction<{
-    name: string; classLevel: string; email: string;
-    parentName: string; parentEmail: string; sppAmount: number;
-  }>>;
-  onAddSiswa: (e: React.FormEvent) => void;
-  qrSession: { sessionId: string; courseName: string; code: string; generatedAt: string };
-  onRegenerateQr: () => void;
-  gpsLoading: boolean;
-  gpsLocation: { lat: number; lon: number } | null;
-  onGpsQuery: () => void;
-  onSimulateCheckin: (siswaId: string, method: 'QR_SCAN' | 'LOKASI') => void;
-  onToggleSpp: (siswaId: string) => void;
-  currentUserRole: string;
-}
-
-export default function SiswaPanel({
-  filteredSiswas, schedules: _schedules, selectedSiswaId, setSelectedSiswaId,
-  studentSearch, setStudentSearch, studentClassFilter, setStudentClassFilter,
-  newSiswaOpen, setNewSiswaOpen, formDataSiswa, setFormDataSiswa, onAddSiswa,
-  qrSession, onRegenerateQr, gpsLoading, gpsLocation, onGpsQuery,
-  onSimulateCheckin, onToggleSpp, currentUserRole: _currentUserRole
-}: SiswaPanelProps) {
+export default function SiswaPanel() {
+  const {
+    filteredSiswas, selectedSiswaId, setSelectedSiswaId,
+    studentSearch, setStudentSearch, studentClassFilter, setStudentClassFilter,
+    newSiswaOpen, setNewSiswaOpen, formDataSiswa, setFormDataSiswa, onAddSiswa,
+    qrSession, onRegenerateQr, gpsLoading, gpsLocation, onGpsQuery,
+    onSimulateCheckin, onToggleSpp,
+  } = useSiswaPanel();
   return (
     <div id="panel_siswa" className="space-y-4 flex flex-col flex-1">
       <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">

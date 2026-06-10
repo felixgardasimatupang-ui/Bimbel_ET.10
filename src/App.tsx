@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, FormEvent } from 'react';
+import { useState, useCallback, useRef, useMemo, lazy, Suspense, FormEvent } from 'react';
 import {
   INITIAL_SISWA, INITIAL_TEACHERS, INITIAL_TRANSACTIONS,
   INITIAL_SCHEDULES, INITIAL_MATERI,
@@ -10,7 +10,10 @@ import type {
 } from './types';
 
 import { usePersistedState } from './hooks/usePersistedState';
-import { validateEmail, sanitizeCSV } from './utils/validation';
+import { useToast } from './hooks/useToast';
+import { useSync } from './hooks/useSync';
+import { createId, validateEmail, sanitizeCSV, GPS_DEFAULT, APP_USER_NAME } from './utils/validation';
+import { SiswaPanelProvider } from './contexts/SiswaPanelContext';
 import Toast from './components/Toast';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -26,12 +29,14 @@ const HakAksesPanel = lazy(() => import('./components/HakAksesPanel'));
 
 type ActiveTab = 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses';
 
-const GPS_DEFAULT = { lat: -6.2088, lon: 106.8456 } as const;
-const APP_USER_NAME = 'Felix Simatupang';
-
-const createId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-
 export default function App() {
+  const { toast, triggerToast } = useToast();
+  const {
+    offlineMode, pendingSyncCount,
+    isSyncing, syncLogs, addSyncLog, trackOfflineChange,
+    handleSyncData, toggleOfflineMode,
+  } = useSync(triggerToast);
+
   const [siswas, setSiswas] = usePersistedState<Siswa[]>('edu_siswas', INITIAL_SISWA);
   const [teachers, setTeachers] = usePersistedState<Teacher[]>('edu_teachers', INITIAL_TEACHERS);
   const [transactions, setTransactions] = usePersistedState<Transaksi[]>('edu_transactions', INITIAL_TRANSACTIONS);
@@ -42,19 +47,11 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('ringkasan');
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('ADMIN');
-  const [offlineMode, setOfflineMode] = useState(false);
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'warn' | 'info' } | null>(null);
   const [selectedSiswaId, setSelectedSiswaId] = useState<string>(INITIAL_SISWA[0]?.id ?? '');
   const [studentSearch, setStudentSearch] = useState('');
   const [studentClassFilter, setStudentClassFilter] = useState('Semua');
   const [materiSearch, setMateriSearch] = useState('');
   const [materiSubjectFilter, setMateriSubjectFilter] = useState('Semua');
-  const [syncLogs, setSyncLogs] = useState<string[]>([
-    'Sistem diinisialisasi pada server node JKT-NODE-01',
-    'Sinkronisasi database awan berhasil. Status: Konsisten',
-  ]);
 
   const [newSiswaOpen, setNewSiswaOpen] = useState(false);
   const [formDataSiswa, setFormDataSiswa] = useState({
@@ -84,31 +81,6 @@ export default function App() {
 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lon: number } | null>(null);
-
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-      if (syncTimer.current) clearTimeout(syncTimer.current);
-    };
-  }, []);
-
-  const triggerToast = useCallback((message: string, type: 'success' | 'warn' | 'info' = 'success') => {
-    setToast({ message, type });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 4000);
-  }, []);
-
-  const addSyncLog = useCallback((action: string) => {
-    const time = new Date().toLocaleTimeString('id-ID');
-    setSyncLogs((prev) => [`[${time}] ${action}`, ...prev.slice(0, 8)]);
-  }, []);
-
-  const trackOfflineChange = useCallback(() => {
-    if (offlineMode) setPendingSyncCount((prev) => prev + 1);
-  }, [offlineMode]);
 
   const requireRole = useCallback((allowedRoles: UserRole[], action: string): boolean => {
     if (!allowedRoles.includes(currentUserRole)) {
@@ -165,18 +137,6 @@ export default function App() {
     setNotifs((prev) => [newNotif, ...prev]);
     triggerToast('Push notifikasi jadwal ujian berhasil disiarkan ke seluruh siswa & pengajar!', 'info');
     addSyncLog('Broadcasted general exam timeline notifications across all node terminals.');
-  }, [triggerToast, addSyncLog]);
-
-  const handleSyncData = useCallback(() => {
-    setIsSyncing(true);
-    triggerToast('Menyambungkan terminal dan mensinkronisasikan revisi offline...', 'info');
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => {
-      setIsSyncing(false);
-      setPendingSyncCount(0);
-      triggerToast('Sinkronisasi real-time berhasil! Semua instansi data wali murid & server terpadu.', 'success');
-      addSyncLog('Penyelarasan basis data multi-perangkat dikonsolidasi dengan server JKT-MAIN-NODE.');
-    }, 1500);
   }, [triggerToast, addSyncLog]);
 
   const exportToCSV = useCallback(() => {
@@ -426,19 +386,6 @@ export default function App() {
     trackOfflineChange();
   }, [siswas, transactions, setSiswas, setTransactions, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
-  const toggleOfflineMode = useCallback(() => {
-    setOfflineMode((prev) => {
-      if (!prev) {
-        triggerToast('Beralih ke MODE OFFLINE. Aktivitas terekam dalam antrean sinkronisasi lokal.', 'warn');
-        addSyncLog('Offline standby protocols activated. Using ServiceWorker mock queue.');
-      } else {
-        triggerToast('Koneksi Internet pulih! Menyinkronkan tumpukan rekam data siswa...', 'success');
-        handleSyncData();
-      }
-      return !prev;
-    });
-  }, [triggerToast, addSyncLog, handleSyncData]);
-
   const handleRegenerateQr = useCallback(() => {
     if (!requireRole(['ADMIN'], 'regenerasi kode QR')) return;
     const randCode = `QR-CLASS-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -556,18 +503,21 @@ export default function App() {
 
               <ErrorBoundary key="siswa">
                 {activeTab === 'siswa' && (
-                  <SiswaPanel
-                    siswas={siswas} filteredSiswas={filteredSiswas} schedules={schedules}
-                    selectedSiswaId={selectedSiswaId} setSelectedSiswaId={setSelectedSiswaId}
-                    studentSearch={studentSearch} setStudentSearch={setStudentSearch}
-                    studentClassFilter={studentClassFilter} setStudentClassFilter={setStudentClassFilter}
-                    newSiswaOpen={newSiswaOpen} setNewSiswaOpen={setNewSiswaOpen}
-                    formDataSiswa={formDataSiswa} setFormDataSiswa={setFormDataSiswa}
-                    onAddSiswa={handleAddSiswa} qrSession={qrSession} onRegenerateQr={handleRegenerateQr}
-                    gpsLoading={gpsLoading} gpsLocation={gpsLocation} onGpsQuery={queryBrowserGeolocation}
-                    onSimulateCheckin={simulateCheckinSiswa} onToggleSpp={toggleSppPaymentStatus}
-                    currentUserRole={currentUserRole}
-                  />
+                  <SiswaPanelProvider value={{
+                    filteredSiswas, selectedSiswaId, setSelectedSiswaId,
+                    studentSearch, setStudentSearch,
+                    studentClassFilter, setStudentClassFilter,
+                    newSiswaOpen, setNewSiswaOpen,
+                    formDataSiswa, setFormDataSiswa,
+                    onAddSiswa: handleAddSiswa,
+                    qrSession, onRegenerateQr: handleRegenerateQr,
+                    gpsLoading, gpsLocation, onGpsQuery: queryBrowserGeolocation,
+                    onSimulateCheckin: simulateCheckinSiswa,
+                    onToggleSpp: toggleSppPaymentStatus,
+                    currentUserRole,
+                  }}>
+                    <SiswaPanel />
+                  </SiswaPanelProvider>
                 )}
               </ErrorBoundary>
 
