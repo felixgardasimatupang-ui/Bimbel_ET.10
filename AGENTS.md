@@ -2,39 +2,95 @@
 
 ## Project
 
-React 19 SPA for tutoring management (students, teachers, SPP/finance, modules, access control). Mock-data only, no real backend.
+Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + PostgreSQL (backend). Docker-ready with GitHub Actions CI.
 
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
-| `npm run dev` | Vite dev server on `http://0.0.0.0:3000` |
+| `npm run dev` | Vite dev server on `http://0.0.0.0:3000` (proxies `/api` → `localhost:3001`) |
 | `npm run build` | Production build to `dist/` |
 | `npm run lint` | TypeScript type-check (`tsc --noEmit`, strict mode) |
 | `npm run lint:eslint` | ESLint check on `src/` |
-| `npm run test` | Vitest unit tests |
+| `npm run test` | Vitest unit tests (excludes `e2e/` and `backend/`) |
 | `npm run test:watch` | Vitest watch mode |
 | `npm run preview` | Vite preview of built output |
 | `npm run clean` | Remove `dist/` |
 
-Test infrastructure: Vitest + @testing-library/react (33+ test cases in `src/test/`). ESLint configured via `eslint.config.js`.
+### Backend commands (`backend/`)
+
+| Command | What it does |
+|---------|-------------|
+| `cd backend && npm run dev` | Start dev server (tsx watch) on `:3001` |
+| `cd backend && npm run build` | Compile TS → JS to `dist/` |
+| `cd backend && npm start` | Run compiled server |
+| `cd backend && npm run seed` | Run Prisma seed (demo data) |
+| `cd backend && npx prisma db push` | Sync schema to DB (dev) |
+| `cd backend && npx prisma generate` | Regenerate Prisma Client |
+| `cd backend && npx prisma studio` | Open Prisma Studio GUI |
+| `cd backend && npx tsc --noEmit` | Backend type-check |
+
+### Docker
+
+| Command | What it does |
+|---------|-------------|
+| `docker compose up --build` | Start postgres + api (port 3001) + frontend (port 3000) |
+| `docker compose down` | Stop containers |
+| `docker compose down -v` | Stop + delete volumes |
 
 ## Setup
 
-1. `npm install`
-2. `npm run dev`
+1. `npm install && cd backend && npm install`
+2. Copy `backend/.env.example` → `backend/.env`
+3. `cd backend && npx prisma db push && npm run seed`
+4. `cd .. && npm run dev` (frontend) + `cd backend && npm run dev` (backend)
 
 ## Architecture
 
-- **Entry:** `src/main.tsx` → renders `<App />`
+### Frontend (`src/`)
+
+- **Entry:** `src/main.tsx` → renders `<App />` wrapped in `<AuthProvider>`
 - **State-driven routing:** No react-router; `activeTab` state switches between 6 panels: `ringkasan`, `siswa`, `pengajar`, `spp`, `modul`, `hak_akses`
-- **Code splitting:** All 6 panels lazy-loaded via `React.lazy()` + `<Suspense>` — main chunk ~247KB, largest panel ~395KB (RingkasanPanel/recharts)
-- **Persistence:** `usePersistedState` hook — reads/writes localStorage under `edu_*` keys
-- **Components:** `src/components/` (11 files)
+- **Code splitting:** All 6 panels lazy-loaded via `React.lazy()` + `<Suspense>`
+- **Auth:** `AuthContext` + `LoginPage` — unauthenticated users see login form
+- **API client:** `src/api/client.ts` — auto-refresh token, typed responses, error handling
+- **Components:** `src/components/` (12 files — added `LoginPage.tsx`)
+- **Sentry:** `src/lib/sentry.ts` — initialized when `VITE_SENTRY_DSN` is set
 - **Utils:** `src/utils/validation.ts` — pure functions for validation, filtering, CSV safety
-- **Mock data:** `src/data/mockData.ts`
-- **Types:** `src/types.ts` — `Siswa`, `Teacher`, `Transaksi`, `MateriBelajar`, `Notifikasi`, `UserRole`, etc.
-- **Tests:** `src/test/` — Vitest (33+ tests covering usePersistedState, Toast, StatsStrip, ErrorBoundary, SppPanel, validation)
+- **Mock data:** `src/data/mockData.ts` (still used as fallback)
+- **Types:** `src/types.ts` + `src/contexts/AuthContext.tsx` (`AuthUser`)
+- **Tests:** `src/test/` — Vitest (66 tests)
+
+### Backend (`backend/`)
+
+- **Framework:** Express 5 + TypeScript (tsx watch for dev)
+- **ORM:** Prisma with PostgreSQL (schema: `backend/prisma/schema.prisma`)
+- **Auth:** JWT (access + refresh tokens) with bcrypt password hashing
+- **RBAC:** Middleware checks `user.role` (SUPER_ADMIN, ADMIN, FINANCE, GURU, SISWA)
+- **Validation:** Zod schemas on all POST/PUT endpoints
+- **Audit:** All mutations logged to `audit_logs` table with actor + action + entity
+- **Sentry:** `backend/src/middleware/sentry.ts` — initialized when `SENTRY_DSN` is set
+- **Database tables:** users, roles, students, teachers, attendance, transactions, transaction_items, materials, quiz, quiz_options, notifications, notification_recipients, schedules, audit_logs
+
+### API Endpoints
+
+| Route | Methods | Auth | Description |
+|-------|---------|------|-------------|
+| `/api/auth/register` | POST | No | Register new user |
+| `/api/auth/login` | POST | No | Login → JWT tokens |
+| `/api/auth/refresh` | POST | No | Refresh access token |
+| `/api/auth/me` | GET | Yes | Current user info |
+| `/api/students` | GET, POST | Yes | List / create students |
+| `/api/students/:id` | GET, PUT, DELETE | Yes | CRUD single student |
+| `/api/teachers` | GET, POST | Yes | List / create teachers |
+| `/api/teachers/:id` | GET, PUT, DELETE | Yes | CRUD single teacher |
+| `/api/finance` | GET, POST | Yes | List / create transactions |
+| `/api/finance/:id` | GET, PUT, DELETE | Yes | CRUD single transaction |
+| `/api/materials` | GET, POST | Yes | List / create materials |
+| `/api/materials/:id` | GET, PUT, DELETE | Yes | CRUD single material |
+| `/api/notifications` | GET, POST | Yes | List / create notifications |
+| `/api/notifications/:id` | PUT, DELETE | Yes | Read / delete notification |
+| `/api/schedules` | GET | Yes | List schedules |
 
 ## Config
 
@@ -50,8 +106,11 @@ Test infrastructure: Vitest + @testing-library/react (33+ test cases in `src/tes
 - Division by zero: `totalSPPExpected` could be 0 (guarded with `> 0` check); `calculateQuizScore` guards empty questions
 - Form `required` attributes are bypassed by `e.preventDefault()` — use manual validation
 - User name from `APP_USER_NAME` constant in `App.tsx` (not hardcoded in sidebar)
-- All RBAC is client-side only (role selector in sidebar)
-- All data stored in localStorage without encryption
-- Rate limiting enabled on all mutation handlers (500ms cooldown, 300ms for checkin)
+- Server RBAC is enforced via middleware (`backend/src/middleware/rbac.ts`)
+- Frontend role selector in sidebar is for demo only — real roles come from JWT
+- All data stored in localStorage without encryption (migration to backend in progress)
+- Rate limiting on mutation handlers (500ms cooldown, 300ms for checkin)
 - No loading/empty/error states for async operations (except GPS)
 - `metadata.json` no longer claims Gemini API capability
+- Backend uses Zod v4 (latest) — `z.string()` etc still work the same
+- Default demo credentials: `admin@bimbel.edu` / `admin123`
