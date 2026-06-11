@@ -1,20 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-function createStore() {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-  };
-}
+const API_BASE = 'http://localhost:3001/api';
 
-let storage: ReturnType<typeof createStore>;
-
-beforeEach(() => {
-  storage = createStore();
-  vi.stubGlobal('localStorage', storage);
+beforeEach(async () => {
+  vi.restoreAllMocks();
+  vi.stubGlobal('import.meta', { env: { VITE_API_URL: API_BASE } });
+  const client = await import('../api/client');
+  client.clearTokens();
 });
 
 afterEach(() => {
@@ -23,13 +15,12 @@ afterEach(() => {
 
 describe('API Client', () => {
   describe('clearTokens', () => {
-    it('removes tokens from localStorage', async () => {
-      storage.setItem('edu_access_token', 'tok123');
-      storage.setItem('edu_refresh_token', 'ref456');
-      const { clearTokens } = await import('../api/client');
-      clearTokens();
-      expect(storage.getItem('edu_access_token')).toBeNull();
-      expect(storage.getItem('edu_refresh_token')).toBeNull();
+    it('clears access token', async () => {
+      const client = await import('../api/client');
+      client.setAccessToken('tok123');
+      expect(client.getAccessToken()).toBe('tok123');
+      client.clearTokens();
+      expect(client.getAccessToken()).toBeNull();
     });
 
     it('does not throw when nothing stored', async () => {
@@ -72,27 +63,27 @@ describe('API Client', () => {
   });
 
   describe('loginApi', () => {
-    it('stores tokens on success', async () => {
+    it('stores access token in memory on success', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
         new Response(JSON.stringify({
           success: true,
-          data: { user: { id: '1' }, accessToken: 'acc', refreshToken: 'ref' },
+          data: { user: { id: '1' }, accessToken: 'acc' },
         }), { status: 200 }),
       );
-      const { loginApi } = await import('../api/client');
-      const result = await loginApi('admin@test.com', 'pass');
+      const client = await import('../api/client');
+      const result = await client.loginApi('admin@test.com', 'pass');
       expect(result.success).toBe(true);
-      expect(storage.getItem('edu_access_token')).toBe('acc');
+      expect(client.getAccessToken()).toBe('acc');
     });
 
     it('returns error on failed login', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
         new Response(JSON.stringify({ success: false, error: 'Invalid' }), { status: 401 }),
       );
-      const { loginApi } = await import('../api/client');
-      const result = await loginApi('wrong@test.com', 'wrong');
+      const client = await import('../api/client');
+      const result = await client.loginApi('wrong@test.com', 'wrong');
       expect(result.success).toBe(false);
-      expect(storage.getItem('edu_access_token')).toBeNull();
+      expect(client.getAccessToken()).toBeNull();
     });
   });
 });

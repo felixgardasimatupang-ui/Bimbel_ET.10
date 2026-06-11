@@ -10,11 +10,19 @@ import logger from '../utils/logger.js';
 import type { AuthRequest } from '../types/index.js';
 const router = Router();
 
+const REFRESH_COOKIE = 'edu_refresh_token';
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  path: '/api/auth',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 const registerSchema = z.object({
   email: z.string().email('Email tidak valid'),
   password: z.string().min(6, 'Password minimal 6 karakter'),
   name: z.string().min(1, 'Nama wajib diisi'),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN', 'FINANCE', 'GURU', 'SISWA', 'WALI_MURID']).optional(),
 });
 
 const loginSchema = z.object({
@@ -24,7 +32,7 @@ const loginSchema = z.object({
 
 router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
   try {
-    const { email, password, name, role } = req.body;
+    const { email, password, name } = req.body;
 
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) {
@@ -52,38 +60,31 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
         email,
         password: hashedPassword,
         name,
-        role: role || 'ADMIN',
+        role: 'ADMIN',
         supabaseUid,
       },
       select: { id: true, email: true, name: true, role: true, supabaseUid: true },
     });
 
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-    });
-
     let accessToken = '';
     let refreshToken = '';
-    if (sessionData) {
-      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (!signInError && signInData.session) {
-        accessToken = signInData.session.access_token;
-        refreshToken = signInData.session.refresh_token;
-      }
+    const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (!signInError && signInData.session) {
+      accessToken = signInData.session.access_token;
+      refreshToken = signInData.session.refresh_token;
     }
 
     await createAuditLog({ userId: user.id, action: AuditAction.REGISTER, entity: AuditEntity.user, entityId: user.id });
 
+    res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTIONS);
     res.status(201).json({
       success: true,
       data: {
         user: { id: user.id, email: user.email, name: user.name, role: user.role },
         accessToken,
-        refreshToken,
       },
     });
   } catch (err) {
@@ -116,12 +117,12 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response)
 
     await createAuditLog({ userId: dbUser.id, action: AuditAction.LOGIN, entity: AuditEntity.user, entityId: dbUser.id });
 
+    res.cookie(REFRESH_COOKIE, signInData.session.refresh_token, COOKIE_OPTIONS);
     res.json({
       success: true,
       data: {
         user: { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role },
         accessToken: signInData.session.access_token,
-        refreshToken: signInData.session.refresh_token,
       },
     });
   } catch (err) {
@@ -132,9 +133,9 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response)
 
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies?.[REFRESH_COOKIE];
     if (!refreshToken) {
-      res.status(400).json({ success: false, error: 'Refresh token wajib diisi' });
+      res.status(400).json({ success: false, error: 'Refresh token tidak ditemukan' });
       return;
     }
 
@@ -143,21 +144,27 @@ router.post('/refresh', async (req: Request, res: Response) => {
     });
 
     if (refreshError || !sessionData.session) {
+      res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
       res.status(401).json({ success: false, error: 'Refresh token tidak valid atau kadaluarsa' });
       return;
     }
 
+    res.cookie(REFRESH_COOKIE, sessionData.session.refresh_token, COOKIE_OPTIONS);
     res.json({
       success: true,
       data: {
         accessToken: sessionData.session.access_token,
-        refreshToken: sessionData.session.refresh_token,
       },
     });
   } catch (err) {
     logger.error(err, 'Refresh error');
     res.status(401).json({ success: false, error: 'Refresh token tidak valid' });
   }
+});
+
+router.post('/logout', async (req: Request, res: Response) => {
+  res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+  res.json({ success: true });
 });
 
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {

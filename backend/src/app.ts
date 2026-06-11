@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { prisma } from './lib/prisma.js';
 import authRoutes from './routes/auth.js';
@@ -57,8 +58,9 @@ app.use(cors({
 
 logger.info(`[CORS] Allowed origins: ${corsOrigins.join(', ')}`);
 
-// Request body parsing
+// Request body parsing + cookies
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
 
 // Global rate limiting
 const limiter = rateLimit({
