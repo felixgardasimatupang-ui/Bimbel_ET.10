@@ -3,7 +3,7 @@ import {
   MaterialType, NotificationType, AuditAction, AuditEntity,
 } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
-import { hashPassword } from '../src/utils/password.js';
+import { hashPassword } from '../src/utils/crypto.js';
 import { createAuditLog } from '../src/utils/audit.js';
 
 const prisma = new PrismaClient();

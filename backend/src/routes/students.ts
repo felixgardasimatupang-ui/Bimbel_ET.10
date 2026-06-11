@@ -178,19 +178,24 @@ router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (r
     return;
   }
 
-  const student = await prisma.$transaction(async (tx) => {
-    const current = await tx.student.findUnique({ where: { id } });
-    if (!current) throw new Error('Siswa tidak ditemukan');
-    return tx.student.update({
-      where: { id },
-      data: {
-        locationCheckedIn: true,
-        checkInTime: timeNow,
-        performanceScore: Math.min(100, (current.performanceScore ?? 0) + 1.2),
-        attendanceRate: Math.min(100, (current.attendanceRate ?? 0) + 2.5),
-      },
-    });
+  await prisma.$executeRaw`
+    UPDATE students
+    SET
+      location_checked_in = true,
+      check_in_time = ${timeNow},
+      performance_score = LEAST(100.0, COALESCE(performance_score, 0.0) + 1.2),
+      attendance_rate = LEAST(100.0, COALESCE(attendance_rate, 0.0) + 2.5)
+    WHERE id = ${id}
+  `;
+
+  const student = await prisma.student.findUnique({
+    where: { id },
+    include: { subjectsScore: true, progressHistory: true },
   });
+  if (!student) {
+    res.status(404).json({ success: false, error: 'Siswa tidak ditemukan setelah checkin' });
+    return;
+  }
 
   await prisma.attendance.create({
     data: {
