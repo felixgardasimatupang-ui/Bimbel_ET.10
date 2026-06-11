@@ -32,7 +32,7 @@ describe('API Endpoints', () => {
     server = s.server;
     const res = await fetch(`${s.baseUrl}/api/health`);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body.status).toBe('healthy');
     expect(body.db).toBe('connected');
   });
@@ -43,7 +43,7 @@ describe('API Endpoints', () => {
     server = s.server;
     const res = await fetch(`${s.baseUrl}/api/health`);
     expect(res.status).toBe(503);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body.status).toBe('unhealthy');
   });
 
@@ -63,7 +63,7 @@ describe('API Endpoints', () => {
     server = s.server;
     const res = await fetch(`${s.baseUrl}/api/nonexistent`);
     expect(res.status).toBe(404);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body.success).toBe(false);
   });
 

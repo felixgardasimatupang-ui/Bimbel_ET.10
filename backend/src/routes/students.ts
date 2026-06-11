@@ -178,14 +178,18 @@ router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (r
     return;
   }
 
-  const student = await prisma.student.update({
-    where: { id },
-    data: {
-      locationCheckedIn: true,
-      checkInTime: timeNow,
-      performanceScore: { increment: 1.2 },
-      attendanceRate: { increment: 2.5 },
-    },
+  const student = await prisma.$transaction(async (tx) => {
+    const current = await tx.student.findUnique({ where: { id } });
+    if (!current) throw new Error('Siswa tidak ditemukan');
+    return tx.student.update({
+      where: { id },
+      data: {
+        locationCheckedIn: true,
+        checkInTime: timeNow,
+        performanceScore: Math.min(100, (current.performanceScore ?? 0) + 1.2),
+        attendanceRate: Math.min(100, (current.attendanceRate ?? 0) + 2.5),
+      },
+    });
   });
 
   await prisma.attendance.create({
