@@ -93,4 +93,33 @@ export interface Notifikasi {
   targetRole: 'ALL' | 'WALI_MURID' | 'SISWA' | 'GURU';
 }
 
-export type UserRole = 'ADMIN' | 'GURU' | 'WALI_MURID' | 'SISWA';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'FINANCE' | 'GURU' | 'WALI_MURID' | 'SISWA';
+
+export type AuditAction =
+  | 'CREATE' | 'UPDATE' | 'DELETE'
+  | 'LOGIN' | 'REGISTER'
+  | 'CHECKIN' | 'EVALUATE'
+  | 'SEED';
+
+export type AuditEntity =
+  | 'user' | 'student' | 'teacher'
+  | 'transaction' | 'material'
+  | 'notification' | 'schedule'
+  | 'quiz' | 'attendance';
+
+export interface AuditLog {
+  id: string;
+  userId: string | null;
+  action: AuditAction;
+  entity: AuditEntity;
+  entityId: string | null;
+  details: string | null;
+  ip: string | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+}

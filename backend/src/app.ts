@@ -8,6 +8,7 @@ import financeRoutes from './routes/finance.js';
 import materialRoutes from './routes/materials.js';
 import notificationRoutes from './routes/notifications.js';
 import scheduleRoutes from './routes/schedules.js';
+import auditRoutes from './routes/audit.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/schedules', scheduleRoutes);
+app.use('/api/audit-logs', auditRoutes);
 
 app.use(errorHandler);
 

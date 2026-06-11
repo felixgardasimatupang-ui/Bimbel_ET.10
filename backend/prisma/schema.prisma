@@ -1,10 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DATABASE_URL_DIRECT")
+  extensions = [pg_trgm, citext]
 }
 
 enum UserRole {
@@ -16,16 +19,91 @@ enum UserRole {
   WALI_MURID
 }
 
+enum SppStatus {
+  BELUM_BAYAR
+  LUNAS
+}
+
+enum TransactionType {
+  SPP_MASUK
+  GAJI_GURU
+  OPERASIONAL
+  LAIN_LAIN
+}
+
+enum TransactionStatus {
+  LUNAS
+  TERTUNDA
+  BATAL
+}
+
+enum AttendanceStatus {
+  HADIR
+  IZIN
+  SAKIT
+  ALFA
+}
+
+enum AttendanceMethod {
+  QR_SCAN
+  LOKASI
+  MANUAL
+}
+
+enum ScheduleStatus {
+  AKAN_DATANG
+  SEDANG_BERLANGSUNG
+  SELESAI
+}
+
+enum MaterialType {
+  PDF
+  VIDEO
+  TUGAS
+}
+
+enum NotificationType {
+  INFO
+  SPP_INFO
+  UJIAN_INFO
+  JADWAL_INFO
+  PENGUMUMAN
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  REGISTER
+  CHECKIN
+  EVALUATE
+  SEED
+}
+
+enum AuditEntity {
+  user
+  student
+  teacher
+  transaction
+  material
+  notification
+  schedule
+  quiz
+  attendance
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      UserRole @default(ADMIN)
-  avatar    String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  supabaseUid String?  @unique @map("supabase_uid")
+  email       String   @unique
+  password    String
+  name        String
+  role        UserRole @default(ADMIN)
+  avatar      String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   refreshTokens RefreshToken[]
   auditLogs     AuditLog[]
@@ -52,30 +130,30 @@ model RefreshToken {
 }
 
 model Student {
-  id              String   @id @default(cuid())
+  id              String       @id @default(cuid())
   name            String
-  classLevel      String   @map("class_level")
-  email           String   @unique
-  parentName      String   @map("parent_name")
-  parentEmail     String   @map("parent_email")
-  sppAmount       Int      @map("spp_amount")
-  sppStatus       String   @default("BELUM_BAYAR") @map("spp_status")
-  performanceScore Float   @default(80) @map("performance_score")
-  attendanceRate  Float    @default(100) @map("attendance_rate")
-  qrCodeData      String   @map("qr_code_data")
+  classLevel      String       @map("class_level")
+  email           String       @unique
+  parentName      String       @map("parent_name")
+  parentEmail     String       @map("parent_email")
+  sppAmount       Int          @map("spp_amount")
+  sppStatus       SppStatus    @default(BELUM_BAYAR) @map("spp_status")
+  performanceScore Float       @default(80) @map("performance_score")
+  attendanceRate  Float        @default(100) @map("attendance_rate")
+  qrCodeData      String       @map("qr_code_data")
   avatar          String?
-  locationCheckedIn Boolean @default(false) @map("location_checked_in")
-  checkInTime     String?  @map("check_in_time")
+  locationCheckedIn Boolean    @default(false) @map("location_checked_in")
+  checkInTime     String?      @map("check_in_time")
   latitude        Float?
   longitude       Float?
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
-  subjectsScore  SubjectScore[]
+  subjectsScore   SubjectScore[]
   progressHistory ProgressHistory[]
-  attendances    Attendance[]
-  transactions   Transaction[]
+  attendances     Attendance[]
+  transactions    Transaction[]
 
   @@index([name])
   @@index([email])
@@ -83,6 +161,7 @@ model Student {
   @@index([sppStatus])
   @@index([active])
   @@index([sppStatus, active])
+  @@index([parentName])
   @@map("students")
 }
 
@@ -153,78 +232,84 @@ model Evaluation {
 }
 
 model Schedule {
-  id           String @id @default(cuid())
-  teacherId    String @map("teacher_id")
-  classTitle   String @map("class_title")
-  startTime    String @map("start_time")
-  endTime      String @map("end_time")
-  roomCode     String @map("room_code")
-  status       String @default("AKAN_DATANG")
-  teacherName  String @map("teacher_name")
+  id          String         @id @default(cuid())
+  teacherId   String         @map("teacher_id")
+  classTitle  String         @map("class_title")
+  startTime   String         @map("start_time")
+  endTime     String         @map("end_time")
+  roomCode    String         @map("room_code")
+  status      ScheduleStatus @default(AKAN_DATANG)
+  teacherName String         @map("teacher_name")
 
   teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@index([teacherId])
   @@index([status])
+  @@index([startTime])
+  @@index([status, startTime])
   @@map("schedules")
 }
 
 model Attendance {
-  id         String   @id @default(cuid())
-  studentId  String   @map("student_id")
-  date       DateTime @default(now())
-  status     String   @default("HADIR")
-  method     String   @default("QR_SCAN")
-  checkInTime String? @map("check_in_time")
-  latitude   Float?
-  longitude  Float?
+  id          String           @id @default(cuid())
+  studentId   String           @map("student_id")
+  date        DateTime         @default(now())
+  status      AttendanceStatus @default(HADIR)
+  method      AttendanceMethod @default(QR_SCAN)
+  checkInTime String?          @map("check_in_time")
+  latitude    Float?
+  longitude   Float?
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([date])
   @@index([studentId, date])
+  @@index([status])
   @@map("attendances")
 }
 
 model Transaction {
-  id        String   @id @default(cuid())
-  studentId String   @map("student_id")
+  id        String            @id @default(cuid())
+  studentId String            @map("student_id")
   amount    Int
-  type      String
-  date      DateTime @default(now())
-  status    String   @default("LUNAS")
+  type      TransactionType
+  date      DateTime          @default(now())
+  status    TransactionStatus @default(LUNAS)
   notes     String?
-  payeeName String   @map("payee_name")
+  payeeName String            @map("payee_name")
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([type])
   @@index([date])
+  @@index([status])
   @@index([studentId, type, date])
   @@map("transactions")
 }
 
 model Material {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   title          String
   subject        String
-  targetLevel    String   @map("target_level")
-  type           String   @default("PDF")
-  url            String   @default("#")
-  uploadDate     DateTime @default(now()) @map("upload_date")
-  downloadsCount Int      @default(0) @map("downloads_count")
+  targetLevel    String       @map("target_level")
+  type           MaterialType @default(PDF)
+  url            String       @default("#")
+  uploadDate     DateTime     @default(now()) @map("upload_date")
+  downloadsCount Int          @default(0) @map("downloads_count")
   author         String
-  isLocked       Boolean  @default(false) @map("is_locked")
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isLocked       Boolean      @default(false) @map("is_locked")
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
   @@index([subject])
   @@index([active])
   @@index([isLocked])
   @@index([subject, active])
+  @@index([uploadDate])
+  @@index([type])
   @@map("materials")
 }
 
@@ -254,14 +339,14 @@ model InteractiveQuiz {
 }
 
 model Notification {
-  id         String   @id @default(cuid())
-  userId     String?  @map("user_id")
+  id         String           @id @default(cuid())
+  userId     String?          @map("user_id")
   title      String
   message    String
-  type       String   @default("INFO")
-  targetRole String   @map("target_role")
-  read       Boolean  @default(false)
-  timestamp  DateTime @default(now())
+  type       NotificationType @default(INFO)
+  targetRole String           @map("target_role")
+  read       Boolean          @default(false)
+  timestamp  DateTime         @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -269,18 +354,20 @@ model Notification {
   @@index([targetRole])
   @@index([read])
   @@index([timestamp])
+  @@index([type])
+  @@index([targetRole, read])
   @@map("notifications")
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?  @map("user_id")
-  action    String
-  entity    String
-  entityId  String?  @map("entity_id")
+  id        String       @id @default(cuid())
+  userId    String?      @map("user_id")
+  action    AuditAction
+  entity    AuditEntity
+  entityId  String?      @map("entity_id")
   details   String?
   ip        String?
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime     @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -289,5 +376,6 @@ model AuditLog {
   @@index([entity])
   @@index([createdAt])
   @@index([entity, entityId])
+  @@index([action, entity, createdAt])
   @@map("audit_logs")
 }

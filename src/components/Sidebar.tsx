@@ -1,12 +1,12 @@
 import {
   ShieldCheck, Cpu, RefreshCw, Users, Calendar, DollarSign,
-  BookOpen, Wifi, WifiOff, Lock, Award, LogOut, UserCheck
+  BookOpen, Wifi, WifiOff, Lock, Award, LogOut, UserCheck, Activity
 } from 'lucide-react';
 import type { UserRole } from '../types';
 
 interface SidebarProps {
   activeTab: string;
-  setActiveTab: (tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses') => void;
+  setActiveTab: (tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses' | 'audit') => void;
   currentUserRole: UserRole;
   offlineMode: boolean;
   toggleOfflineMode: () => void;
@@ -26,14 +26,14 @@ export default function Sidebar({
   siswaCount, materiCount, quizCount, userName, onLogout
 }: SidebarProps) {
 
-  const handleNavKeyDown = (e: React.KeyboardEvent, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses') => {
+  const handleNavKeyDown = (e: React.KeyboardEvent, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses' | 'audit') => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       setActiveTab(tab);
     }
   };
 
-  const navItem = (id: string, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses', icon: React.ReactNode, label: string, badge?: React.ReactNode) => (
+  const navItem = (id: string, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses' | 'audit', icon: React.ReactNode, label: string, badge?: React.ReactNode) => (
     <button
       id={`nav_${id}`}
       onClick={() => setActiveTab(tab)}
@@ -113,6 +113,24 @@ export default function Sidebar({
           <div className="flex items-center gap-2">
             <Lock className="w-3.5 h-3.5" />
             <span>Matriks Hak Akses</span>
+          </div>
+        </button>
+
+        <button
+          id="nav_audit"
+          onClick={() => setActiveTab('audit')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('audit'); } }}
+          role="tab"
+          aria-selected={activeTab === 'audit'}
+          className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] font-medium transition-colors ${
+            activeTab === 'audit'
+              ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-600 font-bold'
+              : 'hover:bg-slate-800 text-slate-300'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Activity className="w-3.5 h-3.5" />
+            <span>Audit Real-time</span>
           </div>
         </button>
 

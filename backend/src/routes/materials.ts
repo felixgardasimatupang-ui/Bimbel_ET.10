@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AuditAction, AuditEntity } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
@@ -49,7 +49,7 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSch
     data: { title, subject, targetLevel, type, isLocked, author },
   });
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: 'CREATE', entity: 'material', entityId: material.id });
+  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.CREATE, entity: AuditEntity.material, entityId: material.id });
 
   res.status(201).json({ success: true, data: material });
 });

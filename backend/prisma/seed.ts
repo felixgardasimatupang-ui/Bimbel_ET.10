@@ -1,7 +1,40 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import {
+  PrismaClient, UserRole, SppStatus, TransactionType, ScheduleStatus,
+  MaterialType, NotificationType, AuditAction, AuditEntity,
+} from '@prisma/client';
+import { createClient } from '@supabase/supabase-js';
 import { hashPassword } from '../src/utils/password.js';
+import { createAuditLog } from '../src/utils/audit.js';
 
 const prisma = new PrismaClient();
+
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  : null;
+
+async function createSupabaseUser(email: string, password: string) {
+  if (!supabaseAdmin) {
+    console.warn('[SEED] Supabase Admin client not configured — skipping Supabase Auth user creation');
+    return null;
+  }
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    if (error) {
+      console.warn(`[SEED] Supabase user creation failed for ${email}: ${error.message}`);
+      return null;
+    }
+    return data.user.id;
+  } catch (err) {
+    console.warn(`[SEED] Supabase user creation error for ${email}:`, err);
+    return null;
+  }
+}
 
 async function main() {
   console.log('[SEED] Starting database seed...');
@@ -23,22 +56,39 @@ async function main() {
   await prisma.teacher.deleteMany();
   await prisma.user.deleteMany();
 
-  // Users
+  // Users — create in Supabase Auth first, then Prisma
   const adminPw = await hashPassword('admin123');
   const guruPw = await hashPassword('guru123');
   const siswaPw = await hashPassword('siswa123');
 
+  const adminSupabaseUid = await createSupabaseUser('admin@bimbel.edu', 'admin123');
+  const guruSupabaseUid = await createSupabaseUser('guru@bimbel.edu', 'guru123');
+  const siswaSupabaseUid = await createSupabaseUser('siswa@bimbel.edu', 'siswa123');
+
   const admin = await prisma.user.create({
-    data: { email: 'admin@bimbel.edu', password: adminPw, name: 'Admin Utama', role: 'ADMIN' as UserRole },
+    data: {
+      email: 'admin@bimbel.edu', password: adminPw, name: 'Admin Utama', role: 'ADMIN' as UserRole,
+      supabaseUid: adminSupabaseUid || undefined,
+    },
   });
   const guru = await prisma.user.create({
-    data: { email: 'guru@bimbel.edu', password: guruPw, name: 'Pengajar Terverifikasi', role: 'GURU' as UserRole },
+    data: {
+      email: 'guru@bimbel.edu', password: guruPw, name: 'Pengajar Terverifikasi', role: 'GURU' as UserRole,
+      supabaseUid: guruSupabaseUid || undefined,
+    },
   });
   const siswa = await prisma.user.create({
-    data: { email: 'siswa@bimbel.edu', password: siswaPw, name: 'Siswa Demo', role: 'SISWA' as UserRole },
+    data: {
+      email: 'siswa@bimbel.edu', password: siswaPw, name: 'Siswa Demo', role: 'SISWA' as UserRole,
+      supabaseUid: siswaSupabaseUid || undefined,
+    },
   });
 
   console.log(`[SEED] Users: admin@bimbel.edu, guru@bimbel.edu, siswa@bimbel.edu`);
+
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.user, entityId: admin.id, details: 'Seeded admin user' });
+  await createAuditLog({ userId: guru.id, action: AuditAction.SEED, entity: AuditEntity.user, entityId: guru.id, details: 'Seeded guru user' });
+  await createAuditLog({ userId: siswa.id, action: AuditAction.SEED, entity: AuditEntity.user, entityId: siswa.id, details: 'Seeded siswa user' });
 
   // Teachers
   const teacher1 = await prisma.teacher.create({
@@ -61,6 +111,8 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.teacher, entityId: teacher1.id, details: 'Seeded teacher: Dr. Gunawan Saputra, M.Si' });
+
   const teacher2 = await prisma.teacher.create({
     data: {
       name: 'Liem Christian, S.Pd',
@@ -80,6 +132,8 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.teacher, entityId: teacher2.id, details: 'Seeded teacher: Liem Christian, S.Pd' });
+
   const teacher3 = await prisma.teacher.create({
     data: {
       name: 'Siti Rahma, S.Si',
@@ -94,18 +148,21 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.teacher, entityId: teacher3.id, details: 'Seeded teacher: Siti Rahma, S.Si' });
+
   console.log('[SEED] Teachers created');
 
   // Schedules
   const schedules = [
-    { teacherId: teacher1.id, classTitle: 'Matematika Sukses UTBK', startTime: '08:30', endTime: '10:30', roomCode: 'LT-03A', status: 'SEDANG_BERLANGSUNG', teacherName: teacher1.name },
-    { teacherId: teacher1.id, classTitle: 'Fisika Mekanika & Termodinamika', startTime: '13:00', endTime: '15:00', roomCode: 'LT-07C', status: 'AKAN_DATANG', teacherName: teacher1.name },
-    { teacherId: teacher2.id, classTitle: 'TOEFL Masterclass & Academic Writing', startTime: '10:45', endTime: '12:15', roomCode: 'LT-04B', status: 'AKAN_DATANG', teacherName: teacher2.name },
-    { teacherId: teacher3.id, classTitle: 'Kimia UTBK Intensive', startTime: '15:30', endTime: '17:30', roomCode: 'LT-02A', status: 'AKAN_DATANG', teacherName: teacher3.name },
+    { teacherId: teacher1.id, classTitle: 'Matematika Sukses UTBK', startTime: '08:30', endTime: '10:30', roomCode: 'LT-03A', status: ScheduleStatus.SEDANG_BERLANGSUNG, teacherName: teacher1.name },
+    { teacherId: teacher1.id, classTitle: 'Fisika Mekanika & Termodinamika', startTime: '13:00', endTime: '15:00', roomCode: 'LT-07C', status: ScheduleStatus.AKAN_DATANG, teacherName: teacher1.name },
+    { teacherId: teacher2.id, classTitle: 'TOEFL Masterclass & Academic Writing', startTime: '10:45', endTime: '12:15', roomCode: 'LT-04B', status: ScheduleStatus.AKAN_DATANG, teacherName: teacher2.name },
+    { teacherId: teacher3.id, classTitle: 'Kimia UTBK Intensive', startTime: '15:30', endTime: '17:30', roomCode: 'LT-02A', status: ScheduleStatus.AKAN_DATANG, teacherName: teacher3.name },
   ];
 
   for (const s of schedules) {
-    await prisma.schedule.create({ data: s });
+    const created = await prisma.schedule.create({ data: s });
+    await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.schedule, entityId: created.id, details: `Seeded schedule: ${created.classTitle}` });
   }
 
   console.log('[SEED] Schedules created');
@@ -115,7 +172,7 @@ async function main() {
     data: {
       name: 'Budi Santoso', classLevel: '12 SMA - IPA', email: 'budi.santoso@siswa.edu',
       parentName: 'Hendra Santoso', parentEmail: 'hendra.s@parent.com',
-      sppStatus: 'LUNAS', sppAmount: 750000, performanceScore: 88.5, attendanceRate: 95.8,
+      sppStatus: SppStatus.LUNAS, sppAmount: 750000, performanceScore: 88.5, attendanceRate: 95.8,
       qrCodeData: 'QR-BUDI-SANTOSO-001', locationCheckedIn: true, checkInTime: '07:45',
       latitude: -6.2088, longitude: 106.8456,
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
@@ -139,11 +196,13 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.student, entityId: student1.id, details: 'Seeded student: Budi Santoso' });
+
   const student2 = await prisma.student.create({
     data: {
       name: 'Siti Aminah', classLevel: '12 SMA - IPS', email: 'siti.aminah@siswa.edu',
       parentName: 'Ahmad Malik', parentEmail: 'ahmad.m@parent.com',
-      sppStatus: 'BELUM_BAYAR', sppAmount: 750000, performanceScore: 92.1, attendanceRate: 98.2,
+      sppStatus: SppStatus.BELUM_BAYAR, sppAmount: 750000, performanceScore: 92.1, attendanceRate: 98.2,
       qrCodeData: 'QR-SITI-AMINAH-014', locationCheckedIn: true, checkInTime: '07:38',
       latitude: -6.2102, longitude: 106.8441,
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
@@ -167,11 +226,13 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.student, entityId: student2.id, details: 'Seeded student: Siti Aminah' });
+
   const student3 = await prisma.student.create({
     data: {
       name: 'Doni Herlambang', classLevel: '11 SMA - IPA', email: 'doni.h@siswa.edu',
       parentName: 'Suryo Herlambang', parentEmail: 'suryo.herlambang@parent.com',
-      sppStatus: 'LUNAS', sppAmount: 700000, performanceScore: 78.4, attendanceRate: 85.0,
+      sppStatus: SppStatus.LUNAS, sppAmount: 700000, performanceScore: 78.4, attendanceRate: 85.0,
       qrCodeData: 'QR-DONI-HERLAMBANG-052', locationCheckedIn: false,
       avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=150',
       subjectsScore: {
@@ -194,11 +255,13 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.student, entityId: student3.id, details: 'Seeded student: Doni Herlambang' });
+
   const student4 = await prisma.student.create({
     data: {
       name: 'Rina Wijaya', classLevel: '10 SMA', email: 'rina.w@siswa.edu',
       parentName: 'Budi Wijaya', parentEmail: 'budi.w@parent.com',
-      sppStatus: 'BELUM_BAYAR', sppAmount: 650000, performanceScore: 82.0, attendanceRate: 92.0,
+      sppStatus: SppStatus.BELUM_BAYAR, sppAmount: 650000, performanceScore: 82.0, attendanceRate: 92.0,
       qrCodeData: 'QR-RINA-WIJAYA-089', locationCheckedIn: false,
       avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
       subjectsScore: {
@@ -220,6 +283,8 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.student, entityId: student4.id, details: 'Seeded student: Rina Wijaya' });
+
   console.log('[SEED] Students created');
 
   // Transactions
@@ -230,23 +295,25 @@ async function main() {
   ];
 
   for (const tx of txs) {
-    await prisma.transaction.create({ data: tx });
+    const created = await prisma.transaction.create({ data: tx });
+    await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.transaction, entityId: created.id, details: `Seeded transaction: ${created.type} ${created.amount}` });
   }
 
   console.log('[SEED] Transactions created');
 
   // Materials
   const materials = [
-    { title: 'Rumus Cepat Integral Tak Tentu', subject: 'Matematika', targetLevel: '12 SMA', type: 'PDF', author: 'Dr. Gunawan Saputra, M.Si' },
-    { title: 'Panduan TOEFL Lengkap', subject: 'Bahasa Inggris', targetLevel: '12 SMA', type: 'PDF', author: 'Liem Christian, S.Pd', isLocked: true },
-    { title: 'Kimia Dasar: Stoikiometri', subject: 'Kimia', targetLevel: '11 SMA', type: 'VIDEO', author: 'Siti Rahma, S.Si' },
-    { title: 'Fisika Inti & Radioaktivitas', subject: 'Fisika', targetLevel: '12 SMA', type: 'TUGAS', author: 'Dr. Gunawan Saputra, M.Si', isLocked: true },
-    { title: 'Vocabulary Builder: Academic Word List', subject: 'Bahasa Inggris', targetLevel: '11 SMA', type: 'PDF', author: 'Liem Christian, S.Pd' },
-    { title: 'Biologi Sel & Genetika', subject: 'Biologi', targetLevel: '12 SMA', type: 'VIDEO', author: 'Siti Rahma, S.Si' },
+    { title: 'Rumus Cepat Integral Tak Tentu', subject: 'Matematika', targetLevel: '12 SMA', type: MaterialType.PDF, author: 'Dr. Gunawan Saputra, M.Si' },
+    { title: 'Panduan TOEFL Lengkap', subject: 'Bahasa Inggris', targetLevel: '12 SMA', type: MaterialType.PDF, author: 'Liem Christian, S.Pd', isLocked: true },
+    { title: 'Kimia Dasar: Stoikiometri', subject: 'Kimia', targetLevel: '11 SMA', type: MaterialType.VIDEO, author: 'Siti Rahma, S.Si' },
+    { title: 'Fisika Inti & Radioaktivitas', subject: 'Fisika', targetLevel: '12 SMA', type: MaterialType.TUGAS, author: 'Dr. Gunawan Saputra, M.Si', isLocked: true },
+    { title: 'Vocabulary Builder: Academic Word List', subject: 'Bahasa Inggris', targetLevel: '11 SMA', type: MaterialType.PDF, author: 'Liem Christian, S.Pd' },
+    { title: 'Biologi Sel & Genetika', subject: 'Biologi', targetLevel: '12 SMA', type: MaterialType.VIDEO, author: 'Siti Rahma, S.Si' },
   ];
 
   for (const m of materials) {
-    await prisma.material.create({ data: m });
+    const created = await prisma.material.create({ data: m });
+    await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.material, entityId: created.id, details: `Seeded material: ${created.title}` });
   }
 
   console.log('[SEED] Materials created');
@@ -267,16 +334,20 @@ async function main() {
     },
   });
 
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.quiz, entityId: quiz.id, details: `Seeded quiz: ${quiz.title}` });
+
   console.log('[SEED] Quizzes created');
 
   // Notifications
   await prisma.notification.createMany({
     data: [
-      { title: 'Pengingat SPP: Budi Santoso', message: 'Pembayaran SPP akan jatuh tempo dalam 3 hari.', type: 'SPP_INFO', targetRole: 'WALI_MURID' },
-      { title: 'Jadwal Try Out UTBK', message: 'Try Out UTBK gelombang 2 akan dilaksanakan Sabtu, 15 Juni 2026.', type: 'UJIAN_INFO', targetRole: 'ALL' },
-      { title: 'Modul Baru: Integral Tak Tentu', message: 'Modul baru telah diupload oleh Dr. Gunawan.', type: 'INFO', targetRole: 'ALL' },
+      { title: 'Pengingat SPP: Budi Santoso', message: 'Pembayaran SPP akan jatuh tempo dalam 3 hari.', type: NotificationType.SPP_INFO, targetRole: 'WALI_MURID' },
+      { title: 'Jadwal Try Out UTBK', message: 'Try Out UTBK gelombang 2 akan dilaksanakan Sabtu, 15 Juni 2026.', type: NotificationType.UJIAN_INFO, targetRole: 'ALL' },
+      { title: 'Modul Baru: Integral Tak Tentu', message: 'Modul baru telah diupload oleh Dr. Gunawan.', type: NotificationType.INFO, targetRole: 'ALL' },
     ],
   });
+
+  await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.notification, details: 'Seeded 3 notifications' });
 
   console.log('[SEED] Notifications created');
   console.log('[SEED] Seed completed successfully!');

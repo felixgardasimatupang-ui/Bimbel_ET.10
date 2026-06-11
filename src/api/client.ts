@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase';
 import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -44,27 +45,38 @@ export function clearTokens() {
 
 async function refreshAccessToken(): Promise<string | null> {
   const { refresh } = getTokens();
-  if (!refresh) return null;
-
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: refresh }),
-    });
-    if (!res.ok) {
-      clearTokens();
-      return null;
+  if (refresh) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refresh }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setTokens(data.data.accessToken, data.data.refreshToken);
+          return data.data.accessToken;
+        }
+      }
+    } catch {
+      // fall through
     }
-    const data = await res.json();
-    if (data.success) {
-      setTokens(data.data.accessToken, data.data.refreshToken);
-      return data.data.accessToken;
-    }
-    return null;
-  } catch {
-    return null;
   }
+
+  // Fallback: try Supabase session refresh
+  try {
+    const { data } = await supabase.auth.refreshSession();
+    if (data.session) {
+      setTokens(data.session.access_token, data.session.refresh_token);
+      return data.session.access_token;
+    }
+  } catch {
+    // silent
+  }
+
+  clearTokens();
+  return null;
 }
 
 export async function apiRequest<T = unknown>(endpoint: string, options: RequestOptions = {}): Promise<{ success: boolean; data?: T; error?: string }> {
@@ -201,4 +213,17 @@ export const NotificationsApi = {
 // Schedules API
 export const SchedulesApi = {
   list: () => apiRequest<{ data: Schedule[] }>('/schedules'),
+};
+
+// Audit Logs API
+export const AuditLogsApi = {
+  list: (params?: { action?: string; entity?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.action) qs.set('action', params.action);
+    if (params?.entity) qs.set('entity', params.entity);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return apiRequest<{ data: Array<Record<string, unknown>>; pagination: Record<string, unknown> }>(`/audit-logs${query ? `?${query}` : ''}`);
+  },
 };

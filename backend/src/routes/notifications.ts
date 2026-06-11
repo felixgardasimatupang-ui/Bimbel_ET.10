@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, SppStatus, NotificationType, AuditAction, AuditEntity } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
+import { createAuditLog } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -26,7 +27,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 router.post('/spp-reminder', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
-  const students = await prisma.student.findMany({ where: { sppStatus: 'BELUM_BAYAR', active: true } });
+  const students = await prisma.student.findMany({ where: { sppStatus: SppStatus.BELUM_BAYAR, active: true } });
   if (students.length === 0) {
     res.json({ success: true, message: 'Semua siswa telah membayar SPP' });
     return;
@@ -36,23 +37,39 @@ router.post('/spp-reminder', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Re
     userId: null,
     title: `Tagihan SPP: ${s.name}`,
     message: `Pemberitahuan kepada Wali Murid ${s.parentName}, masa tenggang pembayaran SPP Rp ${s.sppAmount.toLocaleString('id-ID')} untuk siswa ${s.name} akan segera berakhir.`,
-    type: 'SPP_INFO',
+    type: NotificationType.SPP_INFO,
     targetRole: 'WALI_MURID',
   }));
 
   await prisma.notification.createMany({ data: notifs });
+
+  await createAuditLog({
+    userId: (req as any).user?.userId,
+    action: AuditAction.CREATE,
+    entity: AuditEntity.notification,
+    details: `SPP reminders sent to ${students.length} parents`,
+  });
+
   res.json({ success: true, message: `${students.length} pengingat SPP terkirim` });
 });
 
-router.post('/exam-reminder', requireRole('SUPER_ADMIN', 'ADMIN'), async (_req: Request, res: Response) => {
+router.post('/exam-reminder', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
   await prisma.notification.create({
     data: {
       title: 'PENGINGAT UJIAN: Evaluasi Tengah Semester',
       message: 'Ujian simulasi UTBK Mandiri dijadwalkan lusa. Mohon seluruh siswa mengunduh lembar latihan di modul belajar kuis interaktif.',
-      type: 'UJIAN_INFO',
+      type: NotificationType.UJIAN_INFO,
       targetRole: 'ALL',
     },
   });
+
+  await createAuditLog({
+    userId: (req as any).user?.userId,
+    action: AuditAction.CREATE,
+    entity: AuditEntity.notification,
+    details: 'Exam reminder broadcast sent to all roles',
+  });
+
   res.json({ success: true, message: 'Pengingat ujian terkirim' });
 });
 

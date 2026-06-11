@@ -2,6 +2,34 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
+// Mock Supabase client
+vi.mock('../lib/supabase', () => {
+  const mockChannel = {
+    on: vi.fn().mockReturnThis(),
+    subscribe: vi.fn().mockReturnThis(),
+    unsubscribe: vi.fn(),
+  };
+
+  const mockAuth = {
+    getSession: vi.fn(),
+    onAuthStateChange: vi.fn(() => ({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    })),
+    signInWithPassword: vi.fn(),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+  };
+
+  return {
+    supabase: {
+      auth: mockAuth,
+      channel: vi.fn().mockReturnValue(mockChannel),
+      removeChannel: vi.fn(),
+    },
+  };
+});
+
+import { supabase } from '../lib/supabase';
+
 function createStore() {
   let store: Record<string, string> = {};
   return {
@@ -21,6 +49,12 @@ beforeEach(() => {
   storage = createStore();
   vi.stubGlobal('localStorage', storage);
   vi.restoreAllMocks();
+
+  // Default: no session, no auth state change
+  vi.mocked(supabase.auth.getSession).mockResolvedValue({ data: { session: null }, error: null });
+  vi.mocked(supabase.auth.onAuthStateChange).mockReturnValue({
+    data: { subscription: { unsubscribe: vi.fn() } },
+  } as any);
 });
 
 afterEach(() => {
@@ -50,44 +84,84 @@ function renderCtx() {
 }
 
 describe('AuthContext', () => {
-  it('shows done and not authenticated when no token', async () => {
+  it('shows done and not authenticated when no session', async () => {
     renderCtx();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
     expect(screen.getByTestId('auth').textContent).toBe('no');
     expect(screen.getByTestId('user').textContent).toBe('none');
   });
 
-  it('restores session when valid token exists', async () => {
-    storage.setItem('edu_access_token', 'exists');
+  it('restores session when valid session exists', async () => {
+    storage.setItem('edu_access_token', 'token-exists');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'token-exists',
+          refresh_token: 'r',
+          user: { id: 'sb-1', email: 'user@test.com', user_metadata: {} },
+          expires_in: 3600,
+        } as any,
+      },
+      error: null,
+    });
+
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({
         success: true,
         data: { id: '1', email: 'user@test.com', name: 'Test User', role: 'ADMIN' },
       }), { status: 200 }),
     );
+
     renderCtx();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
     expect(screen.getByTestId('auth').textContent).toBe('yes');
     expect(screen.getByTestId('user').textContent).toBe('Test User');
   });
 
-  it('clears token state when getMe fails', async () => {
-    storage.setItem('edu_access_token', 'bad');
+  it('clears token state when session but getMe fails', async () => {
+    storage.setItem('edu_access_token', 'bad-token');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'bad-token',
+          refresh_token: 'r',
+          user: { id: 'sb-1', email: 'bad@test.com', user_metadata: {} },
+          expires_in: 3600,
+        } as any,
+      },
+      error: null,
+    });
+
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401 }),
     );
+
     renderCtx();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
     expect(screen.getByTestId('auth').textContent).toBe('no');
   });
 
   it('login sets user and isAuthenticated', async () => {
+    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'new-token',
+          refresh_token: 'new-r',
+          user: { id: 'sb-1', email: 't@t.com', user_metadata: {} },
+          expires_in: 3600,
+        } as any,
+        user: { id: 'sb-1', email: 't@t.com', user_metadata: {} } as any,
+      },
+      error: null,
+    });
+
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({
         success: true,
-        data: { user: { id: '1', email: 't@t.com', name: 'Tester', role: 'ADMIN' }, accessToken: 'a', refreshToken: 'r' },
+        data: { id: '1', email: 't@t.com', name: 'Tester', role: 'ADMIN' },
       }), { status: 200 }),
     );
+
     renderCtx();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
     await act(async () => { screen.getByTestId('btn-login').click(); });
@@ -96,26 +170,45 @@ describe('AuthContext', () => {
   });
 
   it('login returns error on failure', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ success: false, error: 'Invalid credentials' }), { status: 401 }),
-    );
-    const { loginApi } = await import('../api/client');
-    const result = await loginApi('x', 'y');
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('Invalid credentials');
+    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+      data: { session: null, user: null } as any,
+      error: { name: 'AuthError', message: 'Invalid login credentials', status: 400 } as any,
+    });
+
+    renderCtx();
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
+    await act(async () => { screen.getByTestId('btn-login').click(); });
+    expect(screen.getByTestId('auth').textContent).toBe('no');
+    expect(screen.getByTestId('user').textContent).toBe('none');
   });
 
   it('logout clears user and isAuthenticated', async () => {
+    // First login
+    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+      data: {
+        session: {
+          access_token: 't', refresh_token: 'r',
+          user: { id: 'sb-1', email: 'a@b.com', user_metadata: {} },
+          expires_in: 3600,
+        } as any,
+        user: { id: 'sb-1', email: 'a@b.com', user_metadata: {} } as any,
+      },
+      error: null,
+    });
+
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({
         success: true,
-        data: { user: { id: '1', email: 'a@b.com', name: 'User', role: 'ADMIN' }, accessToken: 'a', refreshToken: 'r' },
+        data: { id: '1', email: 'a@b.com', name: 'User', role: 'ADMIN' },
       }), { status: 200 }),
     );
+
     renderCtx();
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
     await act(async () => { screen.getByTestId('btn-login').click(); });
     await waitFor(() => expect(screen.getByTestId('auth').textContent).toBe('yes'));
+
+    // Then logout
     await act(async () => { screen.getByTestId('btn-logout').click(); });
     expect(screen.getByTestId('auth').textContent).toBe('no');
     expect(screen.getByTestId('user').textContent).toBe('none');

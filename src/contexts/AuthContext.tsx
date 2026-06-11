@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { clearTokens, getMe, loginApi } from '../api/client';
+import { supabase } from '../lib/supabase';
+import { clearTokens, getMe } from '../api/client';
 import type { UserRole } from '../types';
+import type { Session } from '@supabase/supabase-js';
 
 interface AuthUser {
   id: string;
@@ -26,40 +28,81 @@ export function useAuth() {
   return ctx;
 }
 
+function setTokensFromSession(session: Session | null) {
+  if (session) {
+    localStorage.setItem('edu_access_token', session.access_token);
+    localStorage.setItem('edu_refresh_token', session.refresh_token);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('edu_access_token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setTokensFromSession(session);
+        fetchUserProfile();
+      } else {
+        setLoading(false);
+      }
+    });
 
-    getMe()
-      .then((res) => {
-        if (res.success && res.data) {
-          setUser(res.data as AuthUser);
-        } else {
-          clearTokens();
-        }
-      })
-      .catch(() => clearTokens())
-      .finally(() => setLoading(false));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setTokensFromSession(session);
+        fetchUserProfile();
+      } else {
+        setUser(null);
+        clearTokens();
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  async function fetchUserProfile() {
+    try {
+      const res = await getMe();
+      if (res.success && res.data) {
+        setUser(res.data as AuthUser);
+      } else {
+        clearTokens();
+        await supabase.auth.signOut();
+      }
+    } catch {
+      clearTokens();
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const login = useCallback(async (email: string, password: string) => {
-    const result = await loginApi(email, password);
-    if (result.success && result.data) {
-      const u = (result.data as unknown as { user: AuthUser }).user;
-      setUser(u);
-      return { success: true };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { success: false, error: error.message === 'Invalid login credentials'
+        ? 'Email atau password salah'
+        : error.message };
     }
-    return { success: false, error: result.error || 'Login gagal' };
+    if (data.session) {
+      setTokensFromSession(data.session);
+      try {
+        const res = await getMe();
+        if (res.success && res.data) {
+          setUser(res.data as AuthUser);
+          return { success: true };
+        }
+      } catch {
+        return { success: true };
+      }
+    }
+    return { success: true };
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     clearTokens();
     setUser(null);
   }, []);

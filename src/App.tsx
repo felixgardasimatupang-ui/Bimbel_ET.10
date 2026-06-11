@@ -15,6 +15,7 @@ const PengajarPanel = lazy(() => import('./components/PengajarPanel'));
 const SppPanel = lazy(() => import('./components/SppPanel'));
 const ModulPanel = lazy(() => import('./components/ModulPanel'));
 const HakAksesPanel = lazy(() => import('./components/HakAksesPanel'));
+const AuditLogPanel = lazy(() => import('./components/AuditLogPanel'));
 
 function DashboardShell() {
   const {
@@ -152,6 +153,9 @@ function DashboardShell() {
 
               <ErrorBoundary key="hak_akses">
                 {activeTab === 'hak_akses' && <HakAksesPanel />}
+              </ErrorBoundary>
+              <ErrorBoundary key="audit">
+                {activeTab === 'audit' && <AuditLogPanel />}
               </ErrorBoundary>
             </Suspense>
           </div>

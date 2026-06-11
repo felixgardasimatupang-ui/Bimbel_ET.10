@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AuditAction, AuditEntity } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
@@ -60,7 +60,7 @@ router.post('/evaluate/:id', requireRole('SUPER_ADMIN', 'ADMIN'), validate(evalu
     include: { evaluations: { orderBy: { date: 'desc' }, take: 5 } },
   });
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: 'EVALUATE', entity: 'teacher', entityId: id, details: `Avg score: ${avgScore.toFixed(1)}/5.0` });
+  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.EVALUATE, entity: AuditEntity.teacher, entityId: id, details: `Avg score: ${avgScore.toFixed(1)}/5.0` });
 
   res.json({ success: true, data: updated });
 });

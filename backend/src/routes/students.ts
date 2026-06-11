@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, SppStatus, TransactionType, AuditAction, AuditEntity } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
@@ -106,7 +106,7 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSch
     include: { subjectsScore: true, progressHistory: true },
   });
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: 'CREATE', entity: 'student', entityId: student.id });
+  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.CREATE, entity: AuditEntity.student, entityId: student.id });
 
   res.status(201).json({ success: true, data: student });
 });
@@ -119,34 +119,35 @@ router.put('/:id/toggle-spp', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: R
     return;
   }
 
-  const nextStatus = student.sppStatus === 'LUNAS' ? 'BELUM_BAYAR' : 'LUNAS';
+  const nextStatus = student.sppStatus === SppStatus.LUNAS ? SppStatus.BELUM_BAYAR : SppStatus.LUNAS;
   const updated = await prisma.student.update({
     where: { id },
     data: { sppStatus: nextStatus },
   });
 
-  if (nextStatus === 'LUNAS') {
+  if (nextStatus === SppStatus.LUNAS) {
     const existingTx = await prisma.transaction.findFirst({
       where: {
         studentId: id,
-        type: 'SPP_MASUK',
+        type: TransactionType.SPP_MASUK,
         date: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
       },
     });
     if (!existingTx) {
-      await prisma.transaction.create({
+      const tx = await prisma.transaction.create({
         data: {
           studentId: id,
           amount: student.sppAmount,
-          type: 'SPP_MASUK',
+          type: TransactionType.SPP_MASUK,
           payeeName: `${student.id} - ${student.name} (Wali ${student.parentName})`,
           notes: 'SPP pembayaran instan via panel admin',
         },
       });
+      await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.CREATE, entity: AuditEntity.transaction, entityId: tx.id, details: `Auto-created from SPP toggle: ${student.name}` });
     }
   }
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: 'UPDATE', entity: 'student', entityId: id, details: `SPP status changed to ${nextStatus}` });
+  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.UPDATE, entity: AuditEntity.student, entityId: id, details: `SPP status changed to ${nextStatus}` });
 
   res.json({ success: true, data: updated });
 });
@@ -175,7 +176,7 @@ router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (r
     },
   });
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: 'CHECKIN', entity: 'student', entityId: id });
+  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.CHECKIN, entity: AuditEntity.student, entityId: id });
 
   res.json({ success: true, data: student });
 });

@@ -25,10 +25,14 @@ Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + P
 | `cd backend && npm run build` | Compile TS → JS to `dist/` |
 | `cd backend && npm start` | Run compiled server |
 | `cd backend && npm run seed` | Run Prisma seed (demo data) |
-| `cd backend && npx prisma db push` | Sync schema to DB (dev) |
-| `cd backend && npx prisma generate` | Regenerate Prisma Client |
+| `cd backend && npm run db:migrate` | Create migration (dev) |
+| `cd backend && npm run db:migrate:deploy` | Apply migration (prod) |
+| `cd backend && npm run db:migrate:reset` | Reset + re-migrate (dev) |
+| `cd backend && npm run db:push` | Sync schema langsung (dev, risk data loss) |
+| `cd backend && npm run generate` | Regenerate Prisma Client |
 | `cd backend && npx prisma studio` | Open Prisma Studio GUI |
 | `cd backend && npx tsc --noEmit` | Backend type-check |
+| `psql postgresql://postgres:postgres@localhost:54322/postgres -f backend/prisma/scripts/cleanup-audit-logs.sql` | Hapus audit logs > 90 hari |
 
 ### Docker
 
@@ -44,6 +48,11 @@ Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + P
 2. Copy `backend/.env.example` → `backend/.env`
 3. `cd backend && npx prisma db push && npm run seed`
 4. `cd .. && npm run dev` (frontend) + `cd backend && npm run dev` (backend)
+
+### Production deploy
+
+1. `cd backend && npm run db:migrate:deploy && npm run seed`
+2. `cd .. && npm run build`
 
 ## Architecture
 
@@ -64,13 +73,16 @@ Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + P
 ### Backend (`backend/`)
 
 - **Framework:** Express 5 + TypeScript (tsx watch for dev)
-- **ORM:** Prisma with PostgreSQL (schema: `backend/prisma/schema.prisma`)
-- **Auth:** JWT (access + refresh tokens) with bcrypt password hashing
+- **ORM:** Prisma 6 with PostgreSQL (schema: `backend/prisma/schema.prisma`)
+- **Auth:** Supabase Auth (JWT verification via `supabaseAdmin.auth.getUser()`)
 - **RBAC:** Middleware checks `user.role` (SUPER_ADMIN, ADMIN, FINANCE, GURU, SISWA)
 - **Validation:** Zod schemas on all POST/PUT endpoints
-- **Audit:** All mutations logged to `audit_logs` table with actor + action + entity
+- **Audit:** All mutations logged to `audit_logs` table with typed enum (AuditAction/AuditEntity)
 - **Sentry:** `backend/src/middleware/sentry.ts` — initialized when `SENTRY_DSN` is set
-- **Database tables:** users, roles, students, teachers, attendance, transactions, transaction_items, materials, quiz, quiz_options, notifications, notification_recipients, schedules, audit_logs
+- **Database tables:** users, students (+ subject_scores, progress_history), teachers (+ evaluations), schedules, attendances, transactions, materials, interactive_quizzes (+ quiz_questions), notifications, refresh_tokens, audit_logs
+- **Database enums:** UserRole, SppStatus, TransactionType, TransactionStatus, AttendanceStatus, AttendanceMethod, ScheduleStatus, MaterialType, NotificationType, AuditAction, AuditEntity
+- **Migrations:** Prisma Migrate (`prisma/migrations/0001_initial_production_schema`)
+- **Connection pooling:** `directUrl` configured for PgBouncer production support
 
 ### API Endpoints
 

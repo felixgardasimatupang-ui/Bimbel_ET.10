@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, SppStatus } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 
@@ -34,7 +34,7 @@ router.get('/transactions', async (req: Request, res: Response) => {
 router.get('/summary', async (_req: Request, res: Response) => {
   const students = await prisma.student.findMany({ where: { active: true } });
   const totalExpected = students.reduce((sum, s) => sum + s.sppAmount, 0);
-  const totalCollected = students.filter((s) => s.sppStatus === 'LUNAS').reduce((sum, s) => sum + s.sppAmount, 0);
+  const totalCollected = students.filter((s) => s.sppStatus === SppStatus.LUNAS).reduce((sum, s) => sum + s.sppAmount, 0);
   const percentCollected = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
   const operationalCosts = [
