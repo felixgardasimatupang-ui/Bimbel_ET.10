@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/audit.js';
+import logger from '../utils/logger.js';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -38,7 +39,7 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
     });
 
     if (supabaseError) {
-      console.error('[REGISTER SUPABASE ERROR]', supabaseError);
+      logger.error({ supabaseError }, 'Supabase register error');
       res.status(500).json({ success: false, error: 'Gagal mendaftarkan user di Supabase Auth' });
       return;
     }
@@ -86,7 +87,7 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
       },
     });
   } catch (err) {
-    console.error('[REGISTER ERROR]', err);
+    logger.error(err, 'Register error');
     res.status(500).json({ success: false, error: 'Gagal mendaftarkan user' });
   }
 });
@@ -124,7 +125,7 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response)
       },
     });
   } catch (err) {
-    console.error('[LOGIN ERROR]', err);
+    logger.error(err, 'Login error');
     res.status(500).json({ success: false, error: 'Gagal login' });
   }
 });
@@ -154,7 +155,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('[REFRESH ERROR]', err);
+    logger.error(err, 'Refresh error');
     res.status(401).json({ success: false, error: 'Refresh token tidak valid' });
   }
 });

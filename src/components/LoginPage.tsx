@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
+const isDev = !import.meta.env.PROD;
+
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@bimbel.edu');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState(isDev ? 'admin@bimbel.edu' : '');
+  const [password, setPassword] = useState(isDev ? 'admin123' : '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -73,11 +75,13 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <p className="text-[10px] text-slate-400 text-center">
-              Demo: admin@bimbel.edu / admin123
-            </p>
-          </div>
+          {isDev && (
+            <div className="mt-6 pt-4 border-t border-slate-100">
+              <p className="text-[10px] text-slate-400 text-center">
+                Demo: admin@bimbel.edu / admin123
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
