@@ -1,11 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { getSentryModule } from '../lib/sentry.js';
+import type { Request, Response, NextFunction } from 'express';
+import * as Sentry from '@sentry/node';
 
 export function sentryErrorHandler(err: Error, _req: Request, _res: Response, next: NextFunction) {
-  const sentry = getSentryModule();
-  if (sentry) {
-    const Sentry = sentry as any;
-    Sentry.captureException(err);
-  }
+  Sentry.captureException(err);
   next(err);
 }

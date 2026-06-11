@@ -1,9 +1,5 @@
-import { createRequire } from 'module';
+import * as Sentry from '@sentry/node';
 import logger from '../utils/logger.js';
-
-const _require = createRequire(import.meta.url);
-
-let sentryModule: Record<string, unknown> | null = null;
 
 export function initSentry() {
   const dsn = process.env.SENTRY_DSN;
@@ -12,20 +8,11 @@ export function initSentry() {
     return;
   }
 
-  try {
-    sentryModule = _require('@sentry/node');
-    const Sentry = sentryModule as any;
-    Sentry.init({
-      dsn,
-      environment: process.env.NODE_ENV || 'development',
-      tracesSampleRate: 0.1,
-    });
-    logger.info('Sentry initialized for backend');
-  } catch {
-    logger.warn('Sentry not available — @sentry/node not installed');
-  }
-}
+  Sentry.init({
+    dsn,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.1,
+  });
 
-export function getSentryModule() {
-  return sentryModule;
+  logger.info('Sentry initialized for backend');
 }

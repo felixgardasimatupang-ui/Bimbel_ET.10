@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { prisma } from './lib/prisma.js';
 import authRoutes from './routes/auth.js';
 import studentRoutes from './routes/students.js';
 import teacherRoutes from './routes/teachers.js';
@@ -16,19 +17,24 @@ import logger from './utils/logger.js';
 
 const app = express();
 
-// Security headers
+// Security headers — API-only (JSON responses), minimal CSP
 app.use(helmet({
   contentSecurityPolicy: {
+    useDefaults: false,
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'https://images.unsplash.com'],
-      connectSrc: ["'self'", ...(process.env.SUPABASE_URL ? [process.env.SUPABASE_URL] : [])],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
+      defaultSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: [],
     },
   },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
 // CORS
@@ -83,9 +89,24 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ success: true, message: 'EduAdmin Bimbel API is running', timestamp: new Date().toISOString() });
+// Health check — verifikasi database connectivity
+app.get('/api/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      success: true,
+      status: 'healthy',
+      db: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  } catch {
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      db: 'disconnected',
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // Routes
