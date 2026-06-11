@@ -122,24 +122,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - working-directory: backend
+        run: npm ci
+
       - name: Apply database migrations
-        uses: docker://node:22-alpine
+        working-directory: backend
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-          DATABASE_URL_DIRECT: ${{ secrets.PROD_DATABASE_URL_DIRECT }}
-        with:
-          entrypoint: npx
-          args: -y prisma migrate deploy
-        working-directory: backend
+        run: npx prisma migrate deploy
 
       - name: Trigger deployment
         run: |
           echo "Deployment trigger for ${{ github.repository }}"
           echo "API image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ github.sha }}"
           echo "Frontend image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}"
-        # Replace with actual deploy command:
-        # - kubectl set image deployment/api api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ github.sha }}
-        # - kubectl set image deployment/frontend frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}
 
   sentry-release:
     name: Create Sentry Release
