@@ -56,6 +56,15 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSch
 
 router.put('/:id/download', async (req: Request, res: Response) => {
   const id = req.params.id as string;
+  if (!id || id.length < 8) {
+    res.status(400).json({ success: false, error: 'ID materi tidak valid' });
+    return;
+  }
+  const existing = await prisma.material.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ success: false, error: 'Materi tidak ditemukan' });
+    return;
+  }
   const material = await prisma.material.update({
     where: { id },
     data: { downloadsCount: { increment: 1 } },

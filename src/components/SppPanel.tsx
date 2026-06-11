@@ -1,14 +1,20 @@
-import { INITIAL_BIAYA_OPERASIONAL } from '../data/mockData';
-import type { Transaksi } from '../types';
+import type { Transaksi, BiayaOperasional } from '../types';
 
 interface SppPanelProps {
   transactions: Transaksi[];
   totalSPPCollected: number;
 }
 
+const OPERATIONAL_COSTS: BiayaOperasional[] = [
+  { id: "OP-001", itemName: "Biaya Sewa Gedung & Listrik Kelas", totalCost: 12000000, siswaShare: 30000, description: "Sewa gedung, pemeliharaan AC, dan token listrik belajar.", category: "FASILITAS" },
+  { id: "OP-002", itemName: "Infrastruktur Internet Serat Optik 100Mbps", totalCost: 1500000, siswaShare: 3750, description: "Koneksi Wifi kecepatan tinggi untuk siswa belajar, streaming kuis, & sinkronisasi absensi real-time.", category: "UTILITAS" },
+  { id: "OP-003", itemName: "Materi Cetak & Modul Digital Berwarna", totalCost: 4000000, siswaShare: 10000, description: "Pembelian lisensi soal kurikulum nasional terbaru serta cetak materi intensif mingguan.", category: "KURIKULUM" },
+  { id: "OP-004", itemName: "Gaji Pokok & Tunjangan Operator Sistem & Resepsionis", totalCost: 10500000, siswaShare: 26250, description: "Admin operasional harian yang mengurus kehadiran QR, keluhan wali, & kebersihan bimbel.", category: "GAJI" },
+];
+
 export default function SppPanel({ transactions, totalSPPCollected }: SppPanelProps) {
-  const totalOperationalCost = INITIAL_BIAYA_OPERASIONAL.reduce((sum, item) => sum + item.totalCost, 0);
-  const costPerSiswaCalculated = INITIAL_BIAYA_OPERASIONAL.reduce((sum, b) => sum + b.siswaShare, 0);
+  const totalOperationalCost = OPERATIONAL_COSTS.reduce((sum, item) => sum + item.totalCost, 0);
+  const costPerSiswaCalculated = OPERATIONAL_COSTS.reduce((sum, b) => sum + b.siswaShare, 0);
 
   return (
     <div id="panel_spp" className="space-y-4 flex flex-col flex-1">
@@ -32,7 +38,7 @@ export default function SppPanel({ transactions, totalSPPCollected }: SppPanelPr
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {INITIAL_BIAYA_OPERASIONAL.map((b) => (
+                {OPERATIONAL_COSTS.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50">
                     <td className="p-2.5 font-sans font-semibold text-slate-800 text-[11px]">{b.itemName}</td>
                     <td className="p-2.5 text-right font-bold text-slate-700">Rp {b.totalCost.toLocaleString('id-ID')}</td>

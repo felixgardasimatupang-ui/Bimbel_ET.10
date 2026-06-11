@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, type ReactNode, type FormEvent } from 'react';
-import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule, UserRole } from '../types';
-import type { InteractiveQuiz } from '../data/mockData';
+import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule, UserRole, InteractiveQuiz } from '../types';
 import {
   INITIAL_SISWA, INITIAL_TEACHERS, INITIAL_TRANSACTIONS,
   INITIAL_SCHEDULES, INITIAL_MATERI,

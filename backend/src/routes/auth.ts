@@ -160,7 +160,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/me', authenticate, async (req: Request, res: Response) => {
+router.get('/me', authenticate, async (req: Request, res: Response) => {
   const user = (req as any).user;
   const full = await prisma.user.findUnique({
     where: { id: user.userId },

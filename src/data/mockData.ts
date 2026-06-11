@@ -1,4 +1,4 @@
-import { Siswa, Teacher, Transaksi, BiayaOperasional, Schedule, MateriBelajar, Notifikasi } from '../types';
+import { Siswa, Teacher, Transaksi, Schedule, MateriBelajar, Notifikasi, InteractiveQuiz } from '../types';
 
 export const INITIAL_SISWA: Siswa[] = [
   {
@@ -256,40 +256,7 @@ export const INITIAL_TRANSACTIONS: Transaksi[] = [
   }
 ];
 
-export const INITIAL_BIAYA_OPERASIONAL: BiayaOperasional[] = [
-  {
-    id: "OP-001",
-    itemName: "Biaya Sewa Gedung & Listrik Kelas",
-    totalCost: 12000000,
-    siswaShare: 30000,
-    description: "Sewa gedung, pemeliharaan AC, dan token listrik belajar.",
-    category: "FASILITAS"
-  },
-  {
-    id: "OP-002",
-    itemName: "Infrastruktur Internet Serat Optik 100Mbps",
-    totalCost: 1500000,
-    siswaShare: 3750,
-    description: "Koneksi Wifi kecepatan tinggi untuk siswa belajar, streaming kuis, & sinkronisasi absensi real-time.",
-    category: "UTILITAS"
-  },
-  {
-    id: "OP-003",
-    itemName: "Materi Cetak & Modul Digital Berwarna",
-    totalCost: 4000000,
-    siswaShare: 10000,
-    description: "Pembelian lisensi soal kurikulum nasional terbaru serta cetak materi intensif mingguan.",
-    category: "KURIKULUM"
-  },
-  {
-    id: "OP-004",
-    itemName: "Gaji Pokok & Tunjangan Operator Sistem & Resepsionis",
-    totalCost: 10500000,
-    siswaShare: 26250,
-    description: "Admin operasional harian yang mengurus kehadiran QR, keluhan wali, & kebersihan bimbel.",
-    category: "GAJI"
-  }
-];
+
 
 export const INITIAL_SCHEDULES: Schedule[] = [
   {
@@ -384,21 +351,6 @@ export const INITIAL_MATERI: MateriBelajar[] = [
     isLocked: false
   }
 ];
-
-export interface QuizQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctIndex: number;
-}
-
-export interface InteractiveQuiz {
-  id: string;
-  title: string;
-  subject: string;
-  classLevel: string;
-  questions: QuizQuestion[];
-}
 
 export const INITIAL_QUIZZES: InteractiveQuiz[] = [
   {

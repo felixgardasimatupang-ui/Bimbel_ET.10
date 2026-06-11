@@ -29,6 +29,10 @@ router.get('/', async (_req: Request, res: Response) => {
 
 router.post('/evaluate/:id', requireRole('SUPER_ADMIN', 'ADMIN'), validate(evaluateSchema), async (req: Request, res: Response) => {
   const id = req.params.id as string;
+  if (!id || id.length < 8) {
+    res.status(400).json({ success: false, error: 'ID pengajar tidak valid' });
+    return;
+  }
   const teacher = await prisma.teacher.findUnique({ where: { id } });
   if (!teacher) {
     res.status(404).json({ success: false, error: 'Pengajar tidak ditemukan' });

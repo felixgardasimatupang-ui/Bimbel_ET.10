@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient, SppStatus, TransactionType, AuditAction, AuditEntity } from '@prisma/client';
+import { PrismaClient, SppStatus, TransactionType, AttendanceStatus, AttendanceMethod, AuditAction, AuditEntity } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
@@ -8,6 +8,12 @@ import { createAuditLog } from '../utils/audit.js';
 
 const prisma = new PrismaClient();
 const router = Router();
+
+function parseIntSafe(val: string | undefined, defaultVal: number, min: number, max: number): number {
+  const n = parseInt(val || String(defaultVal), 10);
+  if (isNaN(n)) return defaultVal;
+  return Math.max(min, Math.min(max, n));
+}
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nama wajib diisi'),
@@ -23,8 +29,8 @@ router.use(authenticate);
 router.get('/', async (req: Request, res: Response) => {
   const search = req.query.search as string | undefined;
   const classFilter = req.query.classFilter as string | undefined;
-  const page = req.query.page as string || '1';
-  const limit = req.query.limit as string || '50';
+  const pageNum = parseIntSafe(req.query.page as string | undefined, 1, 1, Infinity);
+  const limitNum = parseIntSafe(req.query.limit as string | undefined, 50, 1, 100);
   const where: Record<string, unknown> = { active: true };
 
   if (search) {
@@ -37,9 +43,6 @@ router.get('/', async (req: Request, res: Response) => {
   if (classFilter && classFilter !== 'Semua') {
     where.classLevel = { contains: classFilter, mode: 'insensitive' };
   }
-
-  const pageNum = Math.max(1, parseInt(page));
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
   const [data, total] = await Promise.all([
     prisma.student.findMany({
       where: where as any,
@@ -65,6 +68,10 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request, res: Response) => {
   const id = req.params.id as string;
+  if (!id || id.length < 8) {
+    res.status(400).json({ success: false, error: 'ID siswa tidak valid' });
+    return;
+  }
   const student = await prisma.student.findUnique({
     where: { id },
     include: { subjectsScore: true, progressHistory: true, attendances: { take: 10, orderBy: { date: 'desc' } }, transactions: { take: 10, orderBy: { date: 'desc' } } },
@@ -113,6 +120,10 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSch
 
 router.put('/:id/toggle-spp', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
   const id = req.params.id as string;
+  if (!id || id.length < 8) {
+    res.status(400).json({ success: false, error: 'ID siswa tidak valid' });
+    return;
+  }
   const student = await prisma.student.findUnique({ where: { id } });
   if (!student) {
     res.status(404).json({ success: false, error: 'Siswa tidak ditemukan' });
@@ -154,8 +165,18 @@ router.put('/:id/toggle-spp', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: R
 
 router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  const method = (req.body as any)?.method || 'QR_SCAN';
+  if (!id || id.length < 8) {
+    res.status(400).json({ success: false, error: 'ID siswa tidak valid' });
+    return;
+  }
+  const method = typeof req.body?.method === 'string' && ['QR_SCAN', 'LOKASI', 'MANUAL'].includes(req.body.method) ? req.body.method as AttendanceMethod : AttendanceMethod.QR_SCAN;
   const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+  const existing = await prisma.student.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ success: false, error: 'Siswa tidak ditemukan' });
+    return;
+  }
 
   const student = await prisma.student.update({
     where: { id },
@@ -170,7 +191,7 @@ router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (r
   await prisma.attendance.create({
     data: {
       studentId: id,
-      status: 'HADIR',
+      status: AttendanceStatus.HADIR,
       method,
       checkInTime: timeNow,
     },

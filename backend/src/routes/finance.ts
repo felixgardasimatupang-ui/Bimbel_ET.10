@@ -6,13 +6,17 @@ import { requireRole } from '../middleware/rbac.js';
 const prisma = new PrismaClient();
 const router = Router();
 
+function parseIntSafe(val: string | undefined, defaultVal: number, min: number, max: number): number {
+  const n = parseInt(val || String(defaultVal), 10);
+  if (isNaN(n)) return defaultVal;
+  return Math.max(min, Math.min(max, n));
+}
+
 router.use(authenticate);
 
-router.get('/transactions', async (req: Request, res: Response) => {
-  const page = req.query.page as string || '1';
-  const limit = req.query.limit as string || '50';
-  const pageNum = Math.max(1, parseInt(page));
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+router.get('/transactions', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (req: Request, res: Response) => {
+  const pageNum = parseIntSafe(req.query.page as string | undefined, 1, 1, Infinity);
+  const limitNum = parseIntSafe(req.query.limit as string | undefined, 50, 1, 100);
 
   const [data, total] = await Promise.all([
     prisma.transaction.findMany({
@@ -31,7 +35,7 @@ router.get('/transactions', async (req: Request, res: Response) => {
   });
 });
 
-router.get('/summary', async (_req: Request, res: Response) => {
+router.get('/summary', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (_req: Request, res: Response) => {
   const students = await prisma.student.findMany({ where: { active: true } });
   const totalExpected = students.reduce((sum, s) => sum + s.sppAmount, 0);
   const totalCollected = students.filter((s) => s.sppStatus === SppStatus.LUNAS).reduce((sum, s) => sum + s.sppAmount, 0);
@@ -59,6 +63,15 @@ router.get('/summary', async (_req: Request, res: Response) => {
 
 router.get('/students/:id/transactions', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (req: Request, res: Response) => {
   const id = req.params.id as string;
+  if (!id || id.length < 8) {
+    res.status(400).json({ success: false, error: 'ID siswa tidak valid' });
+    return;
+  }
+  const student = await prisma.student.findUnique({ where: { id }, select: { id: true } });
+  if (!student) {
+    res.status(404).json({ success: false, error: 'Siswa tidak ditemukan' });
+    return;
+  }
   const txs = await prisma.transaction.findMany({
     where: { studentId: id },
     orderBy: { date: 'desc' },

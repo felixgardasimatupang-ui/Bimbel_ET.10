@@ -43,40 +43,52 @@ export function clearTokens() {
   }
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
 async function refreshAccessToken(): Promise<string | null> {
-  const { refresh } = getTokens();
-  if (refresh) {
-    try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: refresh }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setTokens(data.data.accessToken, data.data.refreshToken);
-          return data.data.accessToken;
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const { refresh } = getTokens();
+    if (refresh) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: refresh }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setTokens(data.data.accessToken, data.data.refreshToken);
+            return data.data.accessToken;
+          }
         }
+      } catch {
+        // fall through
+      }
+    }
+
+    // Fallback: try Supabase session refresh
+    try {
+      const { data } = await supabase.auth.refreshSession();
+      if (data.session) {
+        setTokens(data.session.access_token, data.session.refresh_token);
+        return data.session.access_token;
       }
     } catch {
-      // fall through
+      // silent
     }
-  }
 
-  // Fallback: try Supabase session refresh
+    clearTokens();
+    return null;
+  })();
+
   try {
-    const { data } = await supabase.auth.refreshSession();
-    if (data.session) {
-      setTokens(data.session.access_token, data.session.refresh_token);
-      return data.session.access_token;
-    }
-  } catch {
-    // silent
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
-
-  clearTokens();
-  return null;
 }
 
 export async function apiRequest<T = unknown>(endpoint: string, options: RequestOptions = {}): Promise<{ success: boolean; data?: T; error?: string }> {
@@ -144,7 +156,7 @@ export async function registerApi(email: string, password: string, name: string)
 }
 
 export async function getMe() {
-  return apiRequest('/auth/me', { method: 'POST' });
+  return apiRequest('/auth/me');
 }
 
 // Students API

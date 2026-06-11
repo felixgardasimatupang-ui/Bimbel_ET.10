@@ -107,6 +107,21 @@ export type AuditEntity =
   | 'notification' | 'schedule'
   | 'quiz' | 'attendance';
 
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
+
+export interface InteractiveQuiz {
+  id: string;
+  title: string;
+  subject: string;
+  classLevel: string;
+  questions: QuizQuestion[];
+}
+
 export interface AuditLog {
   id: string;
   userId: string | null;

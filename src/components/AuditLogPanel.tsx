@@ -6,7 +6,7 @@ import { Activity, Filter, RefreshCw, Radio, Wifi, WifiOff } from 'lucide-react'
 import type { AuditLog } from '../types';
 
 type ActionFilter = 'Semua' | 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'REGISTER' | 'CHECKIN' | 'EVALUATE' | 'SEED';
-type EntityFilter = 'Semua' | 'user' | 'student' | 'teacher' | 'transaction' | 'material' | 'notification' | 'schedule' | 'quiz';
+type EntityFilter = 'Semua' | 'user' | 'student' | 'teacher' | 'transaction' | 'material' | 'notification' | 'schedule' | 'quiz' | 'attendance';
 
 const ACTION_COLORS: Record<string, string> = {
   CREATE: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -183,6 +183,7 @@ export default function AuditLogPanel() {
             <option value="notification">Notifikasi</option>
             <option value="schedule">Jadwal</option>
             <option value="quiz">Kuis</option>
+            <option value="attendance">Presensi</option>
           </select>
         </div>
       </div>

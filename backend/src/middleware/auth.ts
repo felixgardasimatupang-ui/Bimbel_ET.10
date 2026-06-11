@@ -14,6 +14,10 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
   try {
     const token = authHeader.slice(7);
+    if (!token) {
+      res.status(401).json({ success: false, error: 'Token tidak ditemukan' });
+      return;
+    }
     const { data: { user: supabaseUser }, error } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !supabaseUser) {

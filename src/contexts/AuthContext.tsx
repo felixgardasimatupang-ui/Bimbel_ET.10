@@ -74,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       clearTokens();
+      await supabase.auth.signOut();
     } finally {
       setLoading(false);
     }
@@ -94,8 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(res.data as AuthUser);
           return { success: true };
         }
+        clearTokens();
+        await supabase.auth.signOut();
+        return { success: false, error: 'Gagal memuat profil pengguna' };
       } catch {
-        return { success: true };
+        clearTokens();
+        await supabase.auth.signOut();
+        return { success: false, error: 'Gagal memuat profil pengguna' };
       }
     }
     return { success: true };

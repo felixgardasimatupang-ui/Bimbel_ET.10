@@ -1,7 +1,6 @@
 import React from 'react';
 import { Search, Plus, X, FileText, Video, Layers, Lock } from 'lucide-react';
-import type { MateriBelajar } from '../types';
-import type { InteractiveQuiz } from '../data/mockData';
+import type { MateriBelajar, InteractiveQuiz } from '../types';
 
 interface ModulPanelProps {
   filteredMateris: MateriBelajar[];

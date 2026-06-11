@@ -1,23 +1,27 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient, AuditAction, AuditEntity } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
+import logger from '../utils/logger.js';
 
 const prisma = new PrismaClient();
 const router = Router();
 
+function parseIntSafe(val: string | undefined, defaultVal: number, min: number, max: number): number {
+  const n = parseInt(val || String(defaultVal), 10);
+  if (isNaN(n)) return defaultVal;
+  return Math.max(min, Math.min(max, n));
+}
+
 router.use(authenticate);
 
 router.get('/', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
-  const page = req.query.page as string || '1';
-  const limit = req.query.limit as string || '50';
+  const pageNum = parseIntSafe(req.query.page as string | undefined, 1, 1, Infinity);
+  const limitNum = parseIntSafe(req.query.limit as string | undefined, 50, 1, 100);
   const action = req.query.action as string | undefined;
   const entity = req.query.entity as string | undefined;
   const startDate = req.query.startDate as string | undefined;
   const endDate = req.query.endDate as string | undefined;
-
-  const pageNum = Math.max(1, parseInt(page));
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
 
   const where: Record<string, unknown> = {};
 
@@ -28,10 +32,21 @@ router.get('/', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: R
     where.entity = entity;
   }
   if (startDate) {
-    where.createdAt = { ...(where.createdAt as object || {}), gte: new Date(startDate) };
+    const d = new Date(startDate);
+    if (isNaN(d.getTime())) {
+      logger.warn({ startDate }, 'Invalid startDate filter');
+    } else {
+      where.createdAt = { ...(where.createdAt as object || {}), gte: d };
+    }
   }
   if (endDate) {
-    where.createdAt = { ...(where.createdAt as object || {}), lte: new Date(endDate) };
+    const d = new Date(endDate);
+    if (isNaN(d.getTime())) {
+      logger.warn({ endDate }, 'Invalid endDate filter');
+    } else {
+      d.setHours(23, 59, 59, 999);
+      where.createdAt = { ...(where.createdAt as object || {}), lte: d };
+    }
   }
 
   const [data, total] = await Promise.all([
