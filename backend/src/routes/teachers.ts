@@ -1,12 +1,12 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient, AuditAction, AuditEntity } from '@prisma/client';
+import { AuditAction, AuditEntity } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
+import { prisma } from '../lib/prisma.js';
 import { createAuditLog } from '../utils/audit.js';
-
-const prisma = new PrismaClient();
+import type { AuthRequest } from '../types/index.js';
 const router = Router();
 
 const evaluateSchema = z.object({
@@ -18,7 +18,7 @@ const evaluateSchema = z.object({
 
 router.use(authenticate);
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (_req: AuthRequest, res: Response) => {
   const data = await prisma.teacher.findMany({
     where: { active: true },
     include: { evaluations: { orderBy: { date: 'desc' }, take: 5 } },
@@ -27,7 +27,7 @@ router.get('/', async (_req: Request, res: Response) => {
   res.json({ success: true, data });
 });
 
-router.post('/evaluate/:id', requireRole('SUPER_ADMIN', 'ADMIN'), validate(evaluateSchema), async (req: Request, res: Response) => {
+router.post('/evaluate/:id', requireRole('SUPER_ADMIN', 'ADMIN'), validate(evaluateSchema), async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   if (!id || id.length < 8) {
     res.status(400).json({ success: false, error: 'ID pengajar tidak valid' });
@@ -64,7 +64,7 @@ router.post('/evaluate/:id', requireRole('SUPER_ADMIN', 'ADMIN'), validate(evalu
     include: { evaluations: { orderBy: { date: 'desc' }, take: 5 } },
   });
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.EVALUATE, entity: AuditEntity.teacher, entityId: id, details: `Avg score: ${avgScore.toFixed(1)}/5.0` });
+  await createAuditLog({ userId: req.user?.userId, action: AuditAction.EVALUATE, entity: AuditEntity.teacher, entityId: id, details: `Avg score: ${avgScore.toFixed(1)}/5.0` });
 
   res.json({ success: true, data: updated });
 });

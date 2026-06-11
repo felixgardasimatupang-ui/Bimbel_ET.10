@@ -1,6 +1,5 @@
-import { PrismaClient, AuditAction, AuditEntity } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { AuditAction, AuditEntity } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
 
 export async function createAuditLog(params: {
   userId?: string;

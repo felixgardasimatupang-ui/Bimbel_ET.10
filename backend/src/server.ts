@@ -1,12 +1,12 @@
 import app from './app.js';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './lib/prisma.js';
+import { initSentry } from './lib/sentry.js';
 import logger from './utils/logger.js';
-
-const prisma = new PrismaClient();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 async function main() {
   try {
+    initSentry();
     await prisma.$connect();
     logger.info('Connected to PostgreSQL');
 

@@ -10,6 +10,7 @@ import materialRoutes from './routes/materials.js';
 import notificationRoutes from './routes/notifications.js';
 import scheduleRoutes from './routes/schedules.js';
 import auditRoutes from './routes/audit.js';
+import { sentryErrorHandler } from './middleware/sentry.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import logger from './utils/logger.js';
 
@@ -105,6 +106,9 @@ app.use((req, res, next) => {
     next();
   }
 });
+
+// Sentry error reporting (before final error handler)
+app.use(sentryErrorHandler);
 
 // Error handler
 app.use(errorHandler);

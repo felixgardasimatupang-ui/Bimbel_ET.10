@@ -1,13 +1,12 @@
-import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Router, Response } from 'express';
 import { authenticate } from '../middleware/auth.js';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
+import type { AuthRequest } from '../types/index.js';
 const router = Router();
 
 router.use(authenticate);
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (_req: AuthRequest, res: Response) => {
   const data = await prisma.schedule.findMany({
     orderBy: { startTime: 'asc' },
   });

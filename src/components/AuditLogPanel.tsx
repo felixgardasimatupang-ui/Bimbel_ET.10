@@ -54,7 +54,7 @@ export default function AuditLogPanel() {
       });
       if (res.success && res.data) {
         setLogs(res.data.data as unknown as AuditLog[]);
-        setTotalPages((res.data.pagination as any)?.totalPages || 1);
+        setTotalPages((res.data.pagination as Record<string, number>)?.totalPages || 1);
       }
     } catch {
       // silent

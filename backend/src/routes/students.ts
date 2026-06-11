@@ -1,12 +1,12 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient, SppStatus, TransactionType, AttendanceStatus, AttendanceMethod, AuditAction, AuditEntity } from '@prisma/client';
+import { SppStatus, TransactionType, AttendanceStatus, AttendanceMethod, AuditAction, AuditEntity } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
+import { prisma } from '../lib/prisma.js';
 import { createAuditLog } from '../utils/audit.js';
-
-const prisma = new PrismaClient();
+import type { AuthRequest } from '../types/index.js';
 const router = Router();
 
 function parseIntSafe(val: string | undefined, defaultVal: number, min: number, max: number): number {
@@ -26,7 +26,7 @@ const createSchema = z.object({
 
 router.use(authenticate);
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   const search = req.query.search as string | undefined;
   const classFilter = req.query.classFilter as string | undefined;
   const pageNum = parseIntSafe(req.query.page as string | undefined, 1, 1, Infinity);
@@ -66,7 +66,7 @@ router.get('/', async (req: Request, res: Response) => {
   });
 });
 
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   if (!id || id.length < 8) {
     res.status(400).json({ success: false, error: 'ID siswa tidak valid' });
@@ -83,7 +83,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   res.json({ success: true, data: student });
 });
 
-router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSchema), async (req: Request, res: Response) => {
+router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSchema), async (req: AuthRequest, res: Response) => {
   const { name, classLevel, email, parentName, parentEmail, sppAmount } = req.body;
   const existing = await prisma.student.findUnique({ where: { email } });
   if (existing) {
@@ -113,12 +113,12 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), validate(createSch
     include: { subjectsScore: true, progressHistory: true },
   });
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.CREATE, entity: AuditEntity.student, entityId: student.id });
+  await createAuditLog({ userId: req.user?.userId, action: AuditAction.CREATE, entity: AuditEntity.student, entityId: student.id });
 
   res.status(201).json({ success: true, data: student });
 });
 
-router.put('/:id/toggle-spp', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+router.put('/:id/toggle-spp', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   if (!id || id.length < 8) {
     res.status(400).json({ success: false, error: 'ID siswa tidak valid' });
@@ -154,16 +154,16 @@ router.put('/:id/toggle-spp', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: R
           notes: 'SPP pembayaran instan via panel admin',
         },
       });
-      await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.CREATE, entity: AuditEntity.transaction, entityId: tx.id, details: `Auto-created from SPP toggle: ${student.name}` });
+      await createAuditLog({ userId: req.user?.userId, action: AuditAction.CREATE, entity: AuditEntity.transaction, entityId: tx.id, details: `Auto-created from SPP toggle: ${student.name}` });
     }
   }
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.UPDATE, entity: AuditEntity.student, entityId: id, details: `SPP status changed to ${nextStatus}` });
+  await createAuditLog({ userId: req.user?.userId, action: AuditAction.UPDATE, entity: AuditEntity.student, entityId: id, details: `SPP status changed to ${nextStatus}` });
 
   res.json({ success: true, data: updated });
 });
 
-router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (req: Request, res: Response) => {
+router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   if (!id || id.length < 8) {
     res.status(400).json({ success: false, error: 'ID siswa tidak valid' });
@@ -197,7 +197,7 @@ router.put('/:id/checkin', requireRole('SUPER_ADMIN', 'ADMIN', 'GURU'), async (r
     },
   });
 
-  await createAuditLog({ userId: (req as any).user?.userId, action: AuditAction.CHECKIN, entity: AuditEntity.student, entityId: id });
+  await createAuditLog({ userId: req.user?.userId, action: AuditAction.CHECKIN, entity: AuditEntity.student, entityId: id });
 
   res.json({ success: true, data: student });
 });

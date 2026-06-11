@@ -1,10 +1,9 @@
-import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Router, Response } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
+import { prisma } from '../lib/prisma.js';
+import type { AuthRequest } from '../types/index.js';
 import logger from '../utils/logger.js';
-
-const prisma = new PrismaClient();
 const router = Router();
 
 function parseIntSafe(val: string | undefined, defaultVal: number, min: number, max: number): number {
@@ -15,7 +14,7 @@ function parseIntSafe(val: string | undefined, defaultVal: number, min: number, 
 
 router.use(authenticate);
 
-router.get('/', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: Request, res: Response) => {
+router.get('/', requireRole('SUPER_ADMIN', 'ADMIN'), async (req: AuthRequest, res: Response) => {
   const pageNum = parseIntSafe(req.query.page as string | undefined, 1, 1, Infinity);
   const limitNum = parseIntSafe(req.query.limit as string | undefined, 50, 1, 100);
   const action = req.query.action as string | undefined;

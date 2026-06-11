@@ -1,9 +1,9 @@
-import { Router, Request, Response } from 'express';
-import { PrismaClient, SppStatus } from '@prisma/client';
+import { Router, Response } from 'express';
+import { SppStatus } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
+import type { AuthRequest } from '../types/index.js';
 const router = Router();
 
 function parseIntSafe(val: string | undefined, defaultVal: number, min: number, max: number): number {
@@ -14,7 +14,7 @@ function parseIntSafe(val: string | undefined, defaultVal: number, min: number, 
 
 router.use(authenticate);
 
-router.get('/transactions', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (req: Request, res: Response) => {
+router.get('/transactions', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (req: AuthRequest, res: Response) => {
   const pageNum = parseIntSafe(req.query.page as string | undefined, 1, 1, Infinity);
   const limitNum = parseIntSafe(req.query.limit as string | undefined, 50, 1, 100);
 
@@ -35,7 +35,7 @@ router.get('/transactions', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), asyn
   });
 });
 
-router.get('/summary', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (_req: Request, res: Response) => {
+router.get('/summary', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (_req: AuthRequest, res: Response) => {
   const students = await prisma.student.findMany({ where: { active: true } });
   const totalExpected = students.reduce((sum, s) => sum + s.sppAmount, 0);
   const totalCollected = students.filter((s) => s.sppStatus === SppStatus.LUNAS).reduce((sum, s) => sum + s.sppAmount, 0);
@@ -61,7 +61,7 @@ router.get('/summary', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (_r
   });
 });
 
-router.get('/students/:id/transactions', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (req: Request, res: Response) => {
+router.get('/students/:id/transactions', requireRole('SUPER_ADMIN', 'ADMIN', 'FINANCE'), async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   if (!id || id.length < 8) {
     res.status(400).json({ success: false, error: 'ID siswa tidak valid' });

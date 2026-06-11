@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { PrismaClient, AuditAction, AuditEntity } from '@prisma/client';
+import { AuditAction, AuditEntity } from '@prisma/client';
 import { supabaseAdmin } from '../lib/supabase.js';
+import { prisma } from '../lib/prisma.js';
 import { validate } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/audit.js';
 import logger from '../utils/logger.js';
-
-const prisma = new PrismaClient();
+import type { AuthRequest } from '../types/index.js';
 const router = Router();
 
 const registerSchema = z.object({
@@ -160,8 +160,12 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/me', authenticate, async (req: Request, res: Response) => {
-  const user = (req as any).user;
+router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ success: false, error: 'Unauthenticated' });
+    return;
+  }
   const full = await prisma.user.findUnique({
     where: { id: user.userId },
     select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true, supabaseUid: true },

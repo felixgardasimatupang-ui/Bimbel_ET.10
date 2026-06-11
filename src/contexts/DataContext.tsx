@@ -6,7 +6,7 @@ import {
   INITIAL_QUIZZES, INITIAL_NOTIFIKASI,
 } from '../data/mockData';
 import { usePersistedState } from '../hooks/usePersistedState';
-import { createId, validateEmail, GPS_DEFAULT, calculateQuizScore } from '../utils/validation';
+import { createId, validateEmail, sanitizeCSV, GPS_DEFAULT, calculateQuizScore } from '../utils/validation';
 import { useToast } from '../hooks/useToast';
 import { useSync } from '../hooks/useSync';
 import { useAuth } from './AuthContext';
@@ -496,11 +496,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'ID Siswa,Nama Lengkap,Kelas,Rata-rata Nilai,Persentase Kehadiran,Status SPP,Wali Murid\n';
     siswas.forEach((s) => {
-      const sanitizeCSV = (val: string) => {
-        if (/^[=+\-@]/.test(val)) return `'${val}`;
-        if (val.includes('"') || val.includes(',') || val.includes('\n')) return `"${val.replace(/"/g, '""')}"`;
-        return val;
-      };
       csvContent += `${sanitizeCSV(s.id)},${sanitizeCSV(s.name)},${sanitizeCSV(s.classLevel)},${s.performanceScore},${sanitizeCSV(`${s.attendanceRate}%`)},${sanitizeCSV(s.sppStatus)},${sanitizeCSV(s.parentName)}\n`;
     });
     const encodedUri = encodeURI(csvContent);
