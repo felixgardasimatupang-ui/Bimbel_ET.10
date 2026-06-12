@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ask-skill-kit": {
+      "type": "local",
+      "command": ["ask", "mcp", "serve"],
+      "enabled": true
+    }
+  },
+  "skills": {
+    "paths": [
+      ".opencode/skills",
+      "skills"
+    ]
+  }
+}

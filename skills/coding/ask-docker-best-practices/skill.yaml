@@ -1,0 +1,16 @@
+name: ask-docker-best-practices
+version: 1.0.0
+category: coding
+description: Best practices for Docker images, Dockerfiles, and containerized deployments. Focuses on image size, security, and maintainability.
+tags:
+  - docker
+  - best-practices
+  - containers
+  - devops
+  - optimization
+agents:
+  - antigravity
+  - gemini
+  - claude
+  - cursor
+  - codex
