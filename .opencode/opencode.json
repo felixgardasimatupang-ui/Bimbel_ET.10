@@ -9,8 +9,7 @@
   },
   "skills": {
     "paths": [
-      ".opencode/skills",
-      "skills"
+      ".opencode/skills"
     ]
   }
 }

@@ -2,49 +2,21 @@
 
 ## Agent Workflow
 
-This project uses **agent-driven skill workflows**. Follow these rules:
+This project uses **agent-driven skill workflows**. Skills are located in the `skills/` directory (development tooling, gitignored for production).
 
-### 1. Skill Discovery
+### Skill Discovery & Usage
 
-Before acting on any request, check `skills/` for an applicable `SKILL.md`. Skills are organized by development phase in `skills/<skill-name>/SKILL.md`.
+Before acting on any request, check `skills/` for an applicable `SKILL.md`.
 
 If a skill applies, you **MUST** invoke the `skill` tool and follow it exactly. Do not skip steps.
 
-### 2. Lifecycle Mapping
-
-| Phase | Skill(s) |
-|-------|----------|
-| DEFINE | `spec-driven-development` (requirements before code) |
-| PLAN | `planning-and-task-breakdown` (verifiable chunks) |
-| BUILD | `incremental-implementation` (thin vertical slices) |
-| BUILD | `test-driven-development` (test first, then implement) |
-| BUILD | `frontend-ui-engineering` (UI components) |
-| BUILD | `api-and-interface-design` (API endpoints) |
-| VERIFY | `debugging-and-error-recovery` (root cause triage) |
-| VERIFY | `browser-testing-with-devtools` (runtime checks) |
-| REVIEW | `code-review-and-quality` (five-axis review) |
-| REVIEW | `code-simplification` (reduce complexity) |
-| REVIEW | `security-and-hardening` (OWASP, least privilege) |
-| SHIP | `shipping-and-launch` (safe deploy) |
-| SHIP | `git-workflow-and-versioning` (clean commits) |
-| SHIP | `ci-cd-and-automation` (quality gates) |
-
-### 3. Core Behaviors
+### Core Behaviors
 
 1. **Surface assumptions** — before implementing non-trivial work, state assumptions explicitly and confirm.
 2. **Manage confusion** — stop, name the confusion, present tradeoffs, wait for resolution.
 3. **Enforce simplicity** — prefer boring, obvious solutions. If 100 lines suffices, do not write 1000.
 4. **Maintain scope** — surgical precision only. No unsolicited refactoring or cleanup.
 5. **Verify, don't assume** — a task is not complete until there is evidence (passing tests, build output, runtime data).
-
-### 4. Sequence for Complete Features
-
-```
-spec-driven-development → planning-and-task-breakdown → incremental-implementation
-→ test-driven-development → code-review-and-quality → shipping-and-launch
-```
-
-Not every task needs all skills. A bug fix may only need: `debugging-and-error-recovery` → `test-driven-development` → `code-review-and-quality`.
 
 ---
 

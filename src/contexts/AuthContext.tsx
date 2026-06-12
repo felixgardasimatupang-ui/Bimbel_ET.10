@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { setAccessToken, clearTokens, getMe, loginApi, logoutApi, getAccessToken } from '../api/client';
+import { setAccessToken, clearTokens, getMe, loginApi, logoutApi } from '../api/client';
 import type { UserRole } from '../types';
 
 interface AuthUser {

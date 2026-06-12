@@ -7,3 +7,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Agent skills (development tooling, not for production)
+skills/
+Agent-Skill-Kit/
