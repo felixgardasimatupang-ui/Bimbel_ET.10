@@ -18,6 +18,8 @@ import logger from './utils/logger.js';
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Security headers — API-only (JSON responses), minimal CSP
 app.use(helmet({
   contentSecurityPolicy: {
