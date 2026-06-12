@@ -44,7 +44,7 @@ Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + P
 | `cd backend && npm run dev` | Start dev server (tsx watch) on `:3001` |
 | `cd backend && npm run build` | Compile TS → JS to `dist/` |
 | `cd backend && npm start` | Run compiled server |
-| `cd backend && npm run seed` | Run Prisma seed (demo data) |
+| `cd backend && npm run db:seed` | Run Prisma seed (demo data) |
 | `cd backend && npm run db:migrate` | Create migration (dev) |
 | `cd backend && npm run db:migrate:deploy` | Apply migration (prod) |
 | `cd backend && npm run db:migrate:reset` | Reset + re-migrate (dev) |
@@ -69,12 +69,12 @@ Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + P
 
 1. `npm install && cd backend && npm install`
 2. Copy `backend/.env.example` → `backend/.env`
-3. `cd backend && npx prisma db push && npm run seed`
+3. `cd backend && npx prisma db push && npm run db:seed`
 4. `cd .. && npm run dev` (frontend) + `cd backend && npm run dev` (backend)
 
 ### Production deploy
 
-1. `cd backend && npm run db:migrate:deploy && npm run seed`
+1. `cd backend && npm run db:migrate:deploy && npm run db:seed`
 2. `cd .. && npm run build`
 
 ## Architecture

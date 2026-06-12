@@ -43,7 +43,7 @@ function DashboardShell() {
   } = useData();
 
   const { user: authUser, logout } = useAuth();
-  const currentUserRole = authUser?.role || 'ADMIN';
+  const currentUserRole = authUser!.role;
 
   return (
     <ErrorBoundary>

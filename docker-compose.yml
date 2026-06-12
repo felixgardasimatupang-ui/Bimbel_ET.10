@@ -23,10 +23,13 @@ services:
       - "3001:3001"
     environment:
       DATABASE_URL: "postgresql://eduadmin:eduadmin_secret@postgres:5432/eduadmin_bimbel"
+      DATABASE_URL_DIRECT: "postgresql://eduadmin:eduadmin_secret@postgres:5432/eduadmin_bimbel"
       JWT_ACCESS_SECRET: "eduadmin-access-secret-prod"
       JWT_REFRESH_SECRET: "eduadmin-refresh-secret-prod"
       CORS_ORIGIN: "http://localhost:3000"
       NODE_ENV: "production"
+      SUPABASE_URL: "${SUPABASE_URL:-http://host.docker.internal:54321}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:-}"
       SENTRY_DSN: "${SENTRY_DSN:-}"
     depends_on:
       postgres:

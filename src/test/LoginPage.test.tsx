@@ -36,7 +36,7 @@ function renderLogin() {
 }
 
 describe('LoginPage', () => {
-  it('renders login form with default credentials', () => {
+  it('renders login form with empty fields', () => {
     fetchQueue = [
       { status: 400, body: { success: false } },
     ];
@@ -45,10 +45,9 @@ describe('LoginPage', () => {
     expect(screen.getByText('EduAdmin Bimbel')).toBeTruthy();
     expect(screen.getByText('Sistem Manajemen Bimbel Terpadu')).toBeTruthy();
     const emailInput = screen.getByPlaceholderText('admin@bimbel.edu') as HTMLInputElement;
-    expect(emailInput.value).toBe('admin@bimbel.edu');
+    expect(emailInput.value).toBe('');
     const passInput = screen.getByPlaceholderText('Masukkan password') as HTMLInputElement;
-    expect(passInput.value).toBe('admin123');
-    expect(screen.getByText('Demo: admin@bimbel.edu / admin123')).toBeTruthy();
+    expect(passInput.value).toBe('');
   });
 
   it('shows error message on failed login', async () => {
@@ -61,6 +60,9 @@ describe('LoginPage', () => {
 
     // Wait for session restore to settle
     await waitFor(() => expect(screen.queryByText('Memproses...')).toBeFalsy());
+
+    fireEvent.change(screen.getByPlaceholderText('admin@bimbel.edu'), { target: { value: 'admin@bimbel.edu' } });
+    fireEvent.change(screen.getByPlaceholderText('Masukkan password'), { target: { value: 'admin123' } });
 
     await act(async () => {
       fireEvent.click(screen.getByText('Masuk'));
@@ -112,6 +114,9 @@ describe('LoginPage', () => {
     renderLogin();
 
     await waitFor(() => expect(screen.queryByText('Memproses...')).toBeFalsy());
+
+    fireEvent.change(screen.getByPlaceholderText('admin@bimbel.edu'), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Masukkan password'), { target: { value: 'pass' } });
 
     await act(async () => {
       fireEvent.click(screen.getByText('Masuk'));
