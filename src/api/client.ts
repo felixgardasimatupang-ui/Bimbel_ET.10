@@ -1,6 +1,6 @@
 import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 interface RequestOptions {
   method?: string;
