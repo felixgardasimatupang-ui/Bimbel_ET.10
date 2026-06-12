@@ -69,6 +69,8 @@ export default function AuditLogPanel() {
 
   // Real-time subscription via Supabase Realtime
   useEffect(() => {
+    if (!supabase) return;
+
     const channel = supabase
       .channel('audit-logs-channel')
       .on(
