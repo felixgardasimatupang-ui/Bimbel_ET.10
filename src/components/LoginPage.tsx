@@ -58,10 +58,37 @@ function GoogleLogo() {
   );
 }
 
+const REMEMBER_EMAIL_KEY = 'edu_remembered_email';
+
+function getSavedEmail(): string {
+  try {
+    return localStorage.getItem(REMEMBER_EMAIL_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveEmail(email: string) {
+  try {
+    localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+  } catch {
+    // storage not available
+  }
+}
+
+function clearSavedEmail() {
+  try {
+    localStorage.removeItem(REMEMBER_EMAIL_KEY);
+  } catch {
+    // storage not available
+  }
+}
+
 export default function LoginPage() {
   const { login, googleLogin } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(getSavedEmail);
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(() => !!getSavedEmail());
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -124,6 +151,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    if (rememberMe) {
+      saveEmail(email);
+    } else {
+      clearSavedEmail();
+    }
 
     const result = await login(email, password);
     setLoading(false);
@@ -267,6 +300,19 @@ export default function LoginPage() {
                         autoComplete="current-password"
                       />
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="remember"
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
+                    />
+                    <label htmlFor="remember" className="text-xs text-slate-500 select-none cursor-pointer">
+                      Ingat Saya
+                    </label>
                   </div>
 
                   <button
