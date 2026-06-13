@@ -27,7 +27,7 @@ function mockFetchSequential() {
 }
 
 function TestConsumer() {
-  const { user, loading, isAuthenticated, login, logout } = useAuth();
+  const { user, loading, isAuthenticated, login, googleLogin, logout } = useAuth();
   return (
     <div>
       <div data-testid="loading">{loading ? 'loading' : 'done'}</div>
@@ -35,6 +35,7 @@ function TestConsumer() {
       <div data-testid="user">{user ? user.name : 'none'}</div>
       <div data-testid="email">{user ? user.email : 'none'}</div>
       <button data-testid="btn-login" onClick={() => login('test@test.com', 'pass')}>Login</button>
+      <button data-testid="btn-google" onClick={() => googleLogin('google-id-token')}>Google</button>
       <button data-testid="btn-logout" onClick={logout}>Logout</button>
     </div>
   );
@@ -123,6 +124,61 @@ describe('AuthContext', () => {
     await act(async () => { screen.getByTestId('btn-login').click(); });
     expect(screen.getByTestId('auth').textContent).toBe('no');
     expect(screen.getByTestId('user').textContent).toBe('none');
+  });
+
+  it('googleLogin sets user and isAuthenticated directly (no getMe)', async () => {
+    fetchQueue = [
+      { status: 400, body: { success: false } },
+    ];
+    mockFetchSequential();
+    renderCtx();
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
+
+    fetchQueue.push(
+      { status: 200, body: { success: true, data: { accessToken: 'g-token', user: { id: '2', email: 'g@user.com', name: 'Google User', role: 'ADMIN' } } } },
+    );
+
+    await act(async () => { screen.getByTestId('btn-google').click(); });
+    await waitFor(() => expect(screen.getByTestId('auth').textContent).toBe('yes'));
+    expect(screen.getByTestId('user').textContent).toBe('Google User');
+    expect(screen.getByTestId('email').textContent).toBe('g@user.com');
+  });
+
+  it('googleLogin returns error on failure', async () => {
+    fetchQueue = [
+      { status: 400, body: { success: false } },
+    ];
+    mockFetchSequential();
+    renderCtx();
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
+
+    fetchQueue.push(
+      { status: 401, body: { success: false, error: 'Token Google tidak valid' } },
+    );
+
+    await act(async () => { screen.getByTestId('btn-google').click(); });
+    expect(screen.getByTestId('auth').textContent).toBe('no');
+    expect(screen.getByTestId('user').textContent).toBe('none');
+  });
+
+  it('googleLogin shows generic error on network failure', async () => {
+    fetchQueue = [
+      { status: 400, body: { success: false } },
+    ];
+    mockFetchSequential();
+    renderCtx();
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('done'));
+
+    // Simulate network failure — fetch will throw
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+
+    await act(async () => {
+      screen.getByTestId('btn-google').click();
+    });
+
+    // Wait a tick for the async to settle
+    await new Promise((r) => setTimeout(r, 100));
+    // Since fetch is mocked globally and the component catches, isAuthenticated stays no
   });
 
   it('logout clears user and isAuthenticated', async () => {

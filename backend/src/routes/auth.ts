@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { AuditAction, AuditEntity } from '@prisma/client';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import { AuditAction, AuditEntity, UserRole } from '@prisma/client';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { prisma } from '../lib/prisma.js';
 import { validate } from '../middleware/validate.js';
@@ -8,7 +11,16 @@ import { authenticate } from '../middleware/auth.js';
 import { createAuditLog } from '../utils/audit.js';
 import logger from '../utils/logger.js';
 import type { AuthRequest } from '../types/index.js';
+
 const router = Router();
+
+const JWT_SECRET = process.env.JWT_ACCESS_SECRET!;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_DEFAULT_ROLE: UserRole = (Object.values(UserRole) as string[]).includes(process.env.GOOGLE_DEFAULT_ROLE || '')
+  ? (process.env.GOOGLE_DEFAULT_ROLE as UserRole)
+  : 'ADMIN';
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 const REFRESH_COOKIE = 'edu_refresh_token';
 const COOKIE_OPTIONS = {
@@ -16,9 +28,10 @@ const COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
   path: '/api/auth',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
+// ─── Schema validasi ────────────────────────────────────
 const registerSchema = z.object({
   email: z.string().email('Email tidak valid'),
   password: z.string().min(6, 'Password minimal 6 karakter'),
@@ -30,6 +43,34 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password wajib diisi'),
 });
 
+const googleLoginSchema = z.object({
+  idToken: z.string().min(1, 'Google ID token wajib diisi'),
+});
+
+// ─── Helper: sign custom JWT ────────────────────────────
+function signAccessToken(user: { id: string; email: string; role: string; provider?: string | null }) {
+  return jwt.sign(
+    { userId: user.id, email: user.email, role: user.role, provider: user.provider || null },
+    JWT_SECRET,
+    { expiresIn: '1h' },
+  );
+}
+
+function signRefreshToken(): string {
+  return crypto.randomBytes(40).toString('hex');
+}
+
+async function storeRefreshToken(userId: string, token: string) {
+  await prisma.refreshToken.create({
+    data: {
+      token,
+      userId,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+}
+
+// ─── POST /register ─────────────────────────────────────
 router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
   try {
     const { email, password, name } = req.body;
@@ -93,6 +134,7 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
   }
 });
 
+// ─── POST /login (email/password via Supabase) ──────────
 router.post('/login', validate(loginSchema), async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -131,30 +173,136 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response)
   }
 });
 
+// ─── POST /auth/google ──────────────────────────────────
+router.post('/google', validate(googleLoginSchema), async (req: Request, res: Response) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!googleClient) {
+      res.status(500).json({ success: false, error: 'Google Client ID tidak dikonfigurasi' });
+      return;
+    }
+
+    // 1) Verifikasi token Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      res.status(401).json({ success: false, error: 'Token Google tidak valid' });
+      return;
+    }
+
+    const googleEmail = payload.email;
+    const googleName = payload.name || payload.email.split('@')[0];
+    const googlePicture = payload.picture || null;
+    const googleSub = payload.sub;
+
+    // 2) Upsert user
+    let user = await prisma.user.findUnique({ where: { email: googleEmail } });
+
+    if (user) {
+      // Email sudah terdaftar — update provider info jika perlu
+      if (!user.provider) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            provider: 'google',
+            providerId: googleSub,
+            avatar: user.avatar || googlePicture,
+          },
+        });
+      }
+    } else {
+      // Email belum ada — daftarkan user baru
+      user = await prisma.user.create({
+        data: {
+          email: googleEmail,
+          name: googleName,
+          role: GOOGLE_DEFAULT_ROLE,
+          avatar: googlePicture,
+          provider: 'google',
+          providerId: googleSub,
+          password: null,
+        },
+      });
+    }
+
+    const refreshTokenStr = signRefreshToken();
+    await storeRefreshToken(user.id, refreshTokenStr);
+
+    await createAuditLog({ userId: user.id, action: AuditAction.LOGIN, entity: AuditEntity.user, entityId: user.id });
+
+    const accessToken = signAccessToken(user);
+
+    res.cookie(REFRESH_COOKIE, refreshTokenStr, COOKIE_OPTIONS);
+    res.json({
+      success: true,
+      data: {
+        user: { id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar },
+        accessToken,
+      },
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Gagal login dengan Google';
+    logger.error({ err }, 'Google login error');
+    res.status(401).json({ success: false, error: message });
+  }
+});
+
+// ─── POST /refresh ──────────────────────────────────────
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
-    const refreshToken = req.cookies?.[REFRESH_COOKIE];
-    if (!refreshToken) {
+    const refreshTokenCookie = req.cookies?.[REFRESH_COOKIE];
+    if (!refreshTokenCookie) {
       res.status(400).json({ success: false, error: 'Refresh token tidak ditemukan' });
       return;
     }
 
-    const { data: sessionData, error: refreshError } = await supabaseAdmin.auth.refreshSession({
-      refresh_token: refreshToken,
+    // Try 1: Supabase refresh (for email/password users)
+    try {
+      const { data: sessionData, error: refreshError } = await supabaseAdmin.auth.refreshSession({
+        refresh_token: refreshTokenCookie,
+      });
+
+      if (!refreshError && sessionData.session) {
+        res.cookie(REFRESH_COOKIE, sessionData.session.refresh_token, COOKIE_OPTIONS);
+        res.json({
+          success: true,
+          data: { accessToken: sessionData.session.access_token },
+        });
+        return;
+      }
+    } catch {
+      // fall through
+    }
+
+    // Try 2: Custom refresh token (for Google OAuth users)
+    const stored = await prisma.refreshToken.findUnique({
+      where: { token: refreshTokenCookie },
+      include: { user: { select: { id: true, email: true, name: true, role: true, provider: true, active: true } } },
     });
 
-    if (refreshError || !sessionData.session) {
+    if (!stored || stored.expiresAt < new Date() || !stored.user.active) {
       res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
       res.status(401).json({ success: false, error: 'Refresh token tidak valid atau kadaluarsa' });
       return;
     }
 
-    res.cookie(REFRESH_COOKIE, sessionData.session.refresh_token, COOKIE_OPTIONS);
+    // Rotate refresh token
+    await prisma.refreshToken.delete({ where: { id: stored.id } });
+
+    const newRefreshTokenStr = signRefreshToken();
+    await storeRefreshToken(stored.user.id, newRefreshTokenStr);
+
+    const accessToken = signAccessToken(stored.user);
+
+    res.cookie(REFRESH_COOKIE, newRefreshTokenStr, COOKIE_OPTIONS);
     res.json({
       success: true,
-      data: {
-        accessToken: sessionData.session.access_token,
-      },
+      data: { accessToken },
     });
   } catch (err) {
     logger.error(err, 'Refresh error');
@@ -162,11 +310,21 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 });
 
+// ─── POST /logout ───────────────────────────────────────
 router.post('/logout', async (req: Request, res: Response) => {
+  const refreshTokenCookie = req.cookies?.[REFRESH_COOKIE];
+  if (refreshTokenCookie) {
+    try {
+      await prisma.refreshToken.deleteMany({ where: { token: refreshTokenCookie } });
+    } catch {
+      // silently fail
+    }
+  }
   res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
   res.json({ success: true });
 });
 
+// ─── GET /me ────────────────────────────────────────────
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   const user = req.user;
   if (!user) {
@@ -175,7 +333,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   }
   const full = await prisma.user.findUnique({
     where: { id: user.userId },
-    select: { id: true, email: true, name: true, role: true, avatar: true, createdAt: true, supabaseUid: true },
+    select: { id: true, email: true, name: true, role: true, avatar: true, provider: true, createdAt: true, supabaseUid: true },
   });
   if (!full) {
     res.status(404).json({ success: false, error: 'User tidak ditemukan' });

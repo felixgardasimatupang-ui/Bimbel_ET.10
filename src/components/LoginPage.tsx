@@ -1,12 +1,88 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getGoogleClientId } from '../config';
+import {
+  GraduationCap,
+  Users,
+  BookOpen,
+  ShieldCheck,
+  BarChart3,
+  Bell,
+  ArrowRight,
+  Mail,
+  Lock,
+  Loader2,
+} from 'lucide-react';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+          }) => void;
+          renderButton: (
+            element: HTMLElement,
+            options: { theme?: string; size?: string; text?: string; shape?: string; width?: string },
+          ) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+const features = [
+  { icon: Users, label: 'Manajemen Siswa', desc: 'Data akademik & absensi terpusat' },
+  { icon: GraduationCap, label: 'Kelola Pengajar', desc: 'Jadwal & evaluasi kinerja' },
+  { icon: BarChart3, label: 'SPP & Keuangan', desc: 'Tracking pembayaran real-time' },
+  { icon: BookOpen, label: 'Materi Belajar', desc: 'Modul & quiz interaktif' },
+  { icon: ShieldCheck, label: 'Hak Akses', desc: 'Role-based control (RBAC)' },
+  { icon: Bell, label: 'Notifikasi', desc: 'Pengingat otomatis SPP & ujian' },
+];
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (!getGoogleClientId() || !window.google || initializedRef.current || !googleBtnRef.current) return;
+    initializedRef.current = true;
+
+    window.google.accounts.id.initialize({
+      client_id: getGoogleClientId(),
+      callback: async (response) => {
+        setGoogleLoading(true);
+        setError('');
+
+        const result = await googleLogin(response.credential);
+        setGoogleLoading(false);
+
+        if (!result.success) {
+          setError(result.error || 'Gagal login dengan Google');
+        }
+      },
+      cancel_on_tap_outside: false,
+    });
+
+    window.google.accounts.id.renderButton(googleBtnRef.current, {
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      width: '100%',
+    });
+  }, [googleLogin]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -22,56 +98,192 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-2xl p-8 border border-slate-200">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-white font-bold text-2xl">EB</span>
+    <div className="min-h-screen flex relative overflow-hidden bg-slate-950">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
+
+      {/* Geometric pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30Z' fill='none' stroke='white' stroke-width='0.5'/%3E%3C/svg%3E")`,
+          backgroundSize: '60px 60px',
+        }}
+      />
+
+      {/* Floating gradient orbs */}
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl" />
+
+      {/* Content */}
+      <div className="relative w-full flex items-center justify-center p-4 lg:p-8">
+        <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+
+          {/* ===== LEFT: Brand & Features ===== */}
+          <div className="hidden lg:block space-y-10">
+            {/* Logo & tagline */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                  <span className="text-white font-bold text-lg">EB</span>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-white tracking-tight">EduAdmin</h1>
+                  <p className="text-sm text-slate-400">Bimbel Management System</p>
+                </div>
+              </div>
+              <p className="text-slate-300 text-lg leading-relaxed max-w-md">
+                Platform manajemen bimbel terpadu untuk mengelola siswa, pengajar, keuangan, dan materi belajar dalam satu ekosistem.
+              </p>
             </div>
-            <h1 className="text-xl font-bold text-slate-800">EduAdmin Bimbel</h1>
-            <p className="text-sm text-slate-500 mt-1">Sistem Manajemen Bimbel Terpadu</p>
+
+            {/* Features grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {features.map((f) => (
+                <div
+                  key={f.label}
+                  className="group flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all duration-200"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                    <f.icon className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-200">{f.label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Trust indicator */}
+            <div className="flex items-center gap-4 text-xs text-slate-600">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-slate-400">Aman & Terenkripsi</span>
+              </div>
+              <div className="w-px h-3 bg-slate-700" />
+              <span className="text-slate-500">© 2026 EduAdmin</span>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="admin@bimbel.edu"
-                required
-              />
-            </div>
+          {/* ===== RIGHT: Login Card ===== */}
+          <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
+            <div className="relative">
+              {/* Card glow */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-2xl blur-xl" />
 
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Masukkan password"
-                required
-              />
-            </div>
+              <div className="relative bg-white rounded-2xl shadow-2xl p-8 border border-slate-200/80">
+                {/* Mobile logo (visible only on small screens) */}
+                <div className="lg:hidden flex items-center gap-3 mb-6 pb-6 border-b border-slate-100">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                    <span className="text-white font-bold">EB</span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-800">EduAdmin Bimbel</h2>
+                    <p className="text-xs text-slate-400">Sistem Manajemen Terpadu</p>
+                  </div>
+                </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg p-3" role="alert">
-                {error}
+                {/* Form header */}
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-slate-800">Selamat Datang</h2>
+                  <p className="text-sm text-slate-500 mt-1">Masuk ke dashboard manajemen Anda</p>
+                </div>
+
+                {/* Error alert */}
+                {error && (
+                  <div className="mb-5 flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 text-xs rounded-lg p-3.5" role="alert">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {/* Login form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300"
+                        placeholder="admin@bimbel.edu"
+                        required
+                        autoComplete="email"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300"
+                        placeholder="Masukkan password"
+                        required
+                        autoComplete="current-password"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-blue-300 disabled:to-indigo-300 text-white font-semibold py-2.5 rounded-lg text-sm transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 disabled:shadow-none"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Memproses...
+                      </>
+                    ) : (
+                      <>
+                        Masuk
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Google Sign-In divider */}
+                {getGoogleClientId() && (
+                  <div className="mt-6">
+                    <div className="relative mb-5">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-200" />
+                      </div>
+                      <div className="relative flex justify-center text-xs">
+                        <span className="bg-white px-3 text-slate-400 font-medium">atau masuk dengan</span>
+                      </div>
+                    </div>
+
+                    {googleLoading ? (
+                      <div className="flex items-center justify-center py-3 border border-slate-200 rounded-lg bg-slate-50/50">
+                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                      </div>
+                    ) : (
+                      <div ref={googleBtnRef} className="flex justify-center [&>div]:w-full [&>div>div]:w-full [&>div>div>iframe]:!w-full" />
+                    )}
+                  </div>
+                )}
+
+                {/* Footer */}
+                <p className="mt-6 text-[10px] text-slate-400 text-center leading-relaxed">
+                  Dengan masuk, Anda menyetujui{' '}
+                  <span className="text-slate-500 underline underline-offset-2 cursor-pointer hover:text-slate-700 transition-colors">Ketentuan Layanan</span>{' '}
+                  dan{' '}
+                  <span className="text-slate-500 underline underline-offset-2 cursor-pointer hover:text-slate-700 transition-colors">Kebijakan Privasi</span>
+                </p>
               </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-2.5 rounded-lg text-sm transition"
-            >
-              {loading ? 'Memproses...' : 'Masuk'}
-            </button>
-          </form>
+            </div>
+          </div>
 
         </div>
       </div>

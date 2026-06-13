@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { setAccessToken, clearTokens, getMe, loginApi, logoutApi } from '../api/client';
+import { setAccessToken, clearTokens, getMe, loginApi, googleLoginApi, logoutApi } from '../api/client';
 import type { UserRole } from '../types';
 
 interface AuthUser {
@@ -14,6 +14,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (idToken: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -83,6 +84,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const googleLogin = useCallback(async (idToken: string) => {
+    try {
+      const result = await googleLoginApi(idToken);
+      if (result.success) {
+        setUser(result.data.user as AuthUser);
+        return { success: true };
+      }
+      return { success: false, error: result.error || 'Gagal login dengan Google' };
+    } catch {
+      return { success: false, error: 'Gagal terhubung ke server' };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await logoutApi();
     clearTokens();
@@ -90,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthCtx.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+    <AuthCtx.Provider value={{ user, loading, login, googleLogin, logout, isAuthenticated: !!user }}>
       {children}
     </AuthCtx.Provider>
   );

@@ -30,6 +30,8 @@ services:
       NODE_ENV: "production"
       SUPABASE_URL: "${SUPABASE_URL:-http://host.docker.internal:54321}"
       SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      GOOGLE_DEFAULT_ROLE: "${GOOGLE_DEFAULT_ROLE:-GURU}"
       SENTRY_DSN: "${SENTRY_DSN:-}"
     depends_on:
       postgres:
@@ -44,6 +46,7 @@ services:
     environment:
       VITE_API_URL: "/api"
       VITE_SENTRY_DSN: "${SENTRY_DSN:-}"
+      VITE_GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
       VITE_GPS_LAT: "${VITE_GPS_LAT:--6.2088}"
       VITE_GPS_LON: "${VITE_GPS_LON:-106.8456}"
     healthcheck:

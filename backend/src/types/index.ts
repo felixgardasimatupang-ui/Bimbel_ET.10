@@ -5,6 +5,7 @@ export interface JwtPayload {
   email: string;
   role: string;
   supabaseUid?: string;
+  provider?: string;
 }
 
 export interface AuthRequest extends Request {

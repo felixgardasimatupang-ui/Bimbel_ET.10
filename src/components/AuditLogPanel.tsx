@@ -91,7 +91,7 @@ export default function AuditLogPanel() {
       });
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase?.removeChannel(channel);
     };
   }, []);
 

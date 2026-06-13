@@ -121,6 +121,20 @@ export async function registerApi(email: string, password: string, name: string)
   return result;
 }
 
+export async function googleLoginApi(idToken: string) {
+  const res = await fetch(`${API_BASE}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+    credentials: 'include',
+  });
+  const result = await res.json().catch(() => ({ success: false, error: 'Gagal parse response' }));
+  if (result.success) {
+    accessToken = result.data.accessToken;
+  }
+  return result;
+}
+
 export async function logoutApi() {
   await fetch(`${API_BASE}/auth/logout`, {
     method: 'POST',

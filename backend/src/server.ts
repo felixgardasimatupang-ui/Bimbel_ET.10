@@ -2,10 +2,29 @@ import app from './app.js';
 import { prisma } from './lib/prisma.js';
 import { initSentry } from './lib/sentry.js';
 import logger from './utils/logger.js';
+
 const PORT = parseInt(process.env.PORT || '3001', 10);
+const REQUIRED_ENV = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const;
+
+function validateEnv(): void {
+  if (process.env.NODE_ENV === 'production') {
+    const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+    if (missing.length > 0) {
+      throw new Error(`Missing required env vars in production: ${missing.join(', ')}`);
+    }
+  } else {
+    const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+    if (missing.length > 0) {
+      logger.warn({ missing }, 'Missing env vars — using dev fallback secrets. Set JWT_ACCESS_SECRET & JWT_REFRESH_SECRET for production.');
+      process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-fallback-change-me';
+      process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-fallback-change-me';
+    }
+  }
+}
 
 async function main() {
   try {
+    validateEnv();
     initSentry();
     await prisma.$connect();
     logger.info('Connected to PostgreSQL');
