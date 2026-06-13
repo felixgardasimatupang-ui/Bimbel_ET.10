@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getGoogleClientId } from '../config';
 import {
@@ -55,7 +55,7 @@ export default function LoginPage() {
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
 
-  useEffect(() => {
+  const initGoogleBtn = useCallback(() => {
     if (!getGoogleClientId() || !window.google || initializedRef.current || !googleBtnRef.current) return;
     initializedRef.current = true;
 
@@ -83,6 +83,21 @@ export default function LoginPage() {
       width: '100%',
     });
   }, [googleLogin]);
+
+  useEffect(() => {
+    if (!getGoogleClientId()) return;
+    if (window.google) {
+      initGoogleBtn();
+    } else {
+      const check = setInterval(() => {
+        if (window.google) {
+          clearInterval(check);
+          initGoogleBtn();
+        }
+      }, 100);
+      return () => clearInterval(check);
+    }
+  }, [initGoogleBtn]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
