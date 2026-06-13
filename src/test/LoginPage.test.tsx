@@ -206,6 +206,17 @@ describe('LoginPage — Google Sign-In', () => {
     expect(screen.getByText('atau masuk dengan')).toBeTruthy();
   });
 
+  it('renders Google logo SVG inside the button', () => {
+    fetchQueue = [{ status: 400, body: { success: false } }];
+    mockGoogleReady();
+    mockFetchSequential();
+    renderLogin();
+    const svg = screen.getByTestId('google-logo');
+    expect(svg).toBeTruthy();
+    expect(svg.tagName).toBe('svg');
+    expect(svg.querySelectorAll('path').length).toBe(4);
+  });
+
   it('shows spinner while googleLogin is in progress', async () => {
     const initializeMock = vi.fn(({ callback }) => {
       setTimeout(() => callback({ credential: 'google-id-token' }), 50);
