@@ -1,6 +1,9 @@
 import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || '';
+const API_BASE = rawApiUrl
+  ? rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '') + '/api'
+  : '/api';
 
 interface RequestOptions {
   method?: string;

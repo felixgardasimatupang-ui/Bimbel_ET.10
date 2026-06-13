@@ -37,7 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function restoreSession() {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`, {
+      const rawUrl = import.meta.env.VITE_API_URL || '';
+      const apiBase = rawUrl ? rawUrl.replace(/\/+$/, '').replace(/\/api$/, '') + '/api' : '/api';
+      const res = await fetch(`${apiBase}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
