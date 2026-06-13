@@ -58,9 +58,9 @@ describe('LoginPage — Landing Page Layout', () => {
     mockFetchSequential();
     renderLogin();
 
-    const emailInput = screen.getByPlaceholderText('admin@bimbel.edu') as HTMLInputElement;
+    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
     expect(emailInput.value).toBe('');
-    const passInput = screen.getByPlaceholderText('Masukkan password') as HTMLInputElement;
+    const passInput = screen.getByLabelText(/password/i) as HTMLInputElement;
     expect(passInput.value).toBe('');
   });
 
@@ -113,8 +113,8 @@ describe('LoginPage — Email/Password Form', () => {
 
     await waitFor(() => expect(screen.queryByText('Memproses...')).toBeFalsy());
 
-    fireEvent.change(screen.getByPlaceholderText('admin@bimbel.edu'), { target: { value: 'admin@bimbel.edu' } });
-    fireEvent.change(screen.getByPlaceholderText('Masukkan password'), { target: { value: 'admin123' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'admin@bimbel.edu' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'admin123' } });
 
     await act(async () => {
       fireEvent.click(screen.getByText('Masuk'));
@@ -134,9 +134,9 @@ describe('LoginPage — Email/Password Form', () => {
 
     await waitFor(() => expect(screen.queryByText('Memproses...')).toBeFalsy());
 
-    const emailInput = screen.getByPlaceholderText('admin@bimbel.edu');
+    const emailInput = screen.getByLabelText(/email/i);
     fireEvent.change(emailInput, { target: { value: 'custom@test.com' } });
-    const passInput = screen.getByPlaceholderText('Masukkan password');
+    const passInput = screen.getByLabelText(/password/i);
     fireEvent.change(passInput, { target: { value: 'custompass' } });
     await act(async () => {
       fireEvent.click(screen.getByText('Masuk'));
@@ -161,8 +161,8 @@ describe('LoginPage — Email/Password Form', () => {
     renderLogin();
     await waitFor(() => expect(screen.queryByText('Memproses...')).toBeFalsy());
 
-    fireEvent.change(screen.getByPlaceholderText('admin@bimbel.edu'), { target: { value: 'a@b.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Masukkan password'), { target: { value: 'pass' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pass' } });
 
     await act(async () => { fireEvent.click(screen.getByText('Masuk')); });
     const btn = screen.getByText('Memproses...');
@@ -179,8 +179,8 @@ describe('LoginPage — Email/Password Form', () => {
     renderLogin();
 
     await waitFor(() => expect(screen.queryByText('Memproses...')).toBeFalsy());
-    fireEvent.change(screen.getByPlaceholderText('admin@bimbel.edu'), { target: { value: 'x@y.com' } });
-    fireEvent.change(screen.getByPlaceholderText('Masukkan password'), { target: { value: 'wrong' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'x@y.com' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'wrong' } });
     await act(async () => { fireEvent.click(screen.getByText('Masuk')); });
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(screen.getByText('Server error')).toBeTruthy();
