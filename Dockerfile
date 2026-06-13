@@ -11,7 +11,7 @@ FROM nginx:1.27-alpine AS runner
 RUN apk add --no-cache wget
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 3000
 CMD ["nginx", "-g", "daemon off;"]

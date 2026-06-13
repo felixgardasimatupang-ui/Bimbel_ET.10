@@ -49,6 +49,7 @@ services:
       VITE_GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
       VITE_GPS_LAT: "${VITE_GPS_LAT:--6.2088}"
       VITE_GPS_LON: "${VITE_GPS_LON:-106.8456}"
+      BACKEND_URL: "http://api:3001"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
       interval: 30s
