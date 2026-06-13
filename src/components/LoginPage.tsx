@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getGoogleClientId } from '../config';
 import {
@@ -72,20 +72,25 @@ export default function LoginPage() {
 
     const start = () => {
       if (!window.google) return;
-      window.google.accounts.id.initialize({
-        client_id: getGoogleClientId()!,
-        callback: async (response) => {
-          setGoogleLoading(true);
-          setError('');
-          const result = await googleLogin(response.credential);
-          setGoogleLoading(false);
-          if (!result.success) {
-            setError(result.error || 'Gagal login dengan Google');
-          }
-        },
-        cancel_on_tap_outside: false,
-      });
-      setGoogleReady(true);
+      try {
+        window.google.accounts.id.initialize({
+          client_id: getGoogleClientId()!,
+          callback: async (response) => {
+            setGoogleLoading(true);
+            setError('');
+            const result = await googleLogin(response.credential);
+            setGoogleLoading(false);
+            if (!result.success) {
+              setError(result.error || 'Gagal login dengan Google');
+            }
+          },
+          cancel_on_tap_outside: false,
+        });
+        setGoogleReady(true);
+      } catch (e) {
+        console.error('Google init failed:', e);
+        setError('Gagal memuat Google Sign-In. Coba refresh halaman.');
+      }
     };
 
     if (window.google) {
@@ -97,7 +102,11 @@ export default function LoginPage() {
           start();
         }
       }, 100);
-      return () => clearInterval(id);
+      const timeout = setTimeout(() => {
+        clearInterval(id);
+        setError('Google Sign-In tidak tersedia. Periksa koneksi atau coba browser lain.');
+      }, 10000);
+      return () => { clearInterval(id); clearTimeout(timeout); };
     }
   }, [googleLogin]);
 
