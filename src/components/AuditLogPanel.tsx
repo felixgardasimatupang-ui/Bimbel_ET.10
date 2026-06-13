@@ -71,27 +71,32 @@ export default function AuditLogPanel() {
   useEffect(() => {
     if (!supabase) return;
 
-    const channel = supabase
-      .channel('audit-logs-channel')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'audit_logs' },
-        (payload) => {
-          const newLog = payload.new as AuditLog;
-          setLiveEntries((prev) => [newLog, ...prev].slice(0, 10));
-          // Flash indicator
-          if (liveIndicatorRef.current) {
-            liveIndicatorRef.current.classList.add('animate-pulse');
-            setTimeout(() => liveIndicatorRef.current?.classList.remove('animate-pulse'), 1000);
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel('audit-logs-channel')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'audit_logs' },
+          (payload) => {
+            const newLog = payload.new as AuditLog;
+            setLiveEntries((prev) => [newLog, ...prev].slice(0, 10));
+            // Flash indicator
+            if (liveIndicatorRef.current) {
+              liveIndicatorRef.current.classList.add('animate-pulse');
+              setTimeout(() => liveIndicatorRef.current?.classList.remove('animate-pulse'), 1000);
+            }
           }
-        }
-      )
-      .subscribe((status) => {
-        setLiveConnected(status === 'SUBSCRIBED');
-      });
+        )
+        .subscribe((status) => {
+          setLiveConnected(status === 'SUBSCRIBED');
+        });
+    } catch {
+      setLiveConnected(false);
+    }
 
     return () => {
-      supabase?.removeChannel(channel);
+      if (channel) supabase?.removeChannel(channel);
     };
   }, []);
 
