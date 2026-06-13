@@ -192,22 +192,26 @@ describe('LoginPage — Google Sign-In', () => {
     vi.mocked(getGoogleClientId).mockReturnValue('test-client-id');
   });
 
+  function mockGoogleReady() {
+    vi.stubGlobal('google', {
+      accounts: { id: { initialize: vi.fn(), renderButton: vi.fn(), prompt: vi.fn() } },
+    });
+  }
+
   it('renders "atau masuk dengan" divider when Google enabled', () => {
     fetchQueue = [{ status: 400, body: { success: false } }];
+    mockGoogleReady();
     mockFetchSequential();
     renderLogin();
     expect(screen.getByText('atau masuk dengan')).toBeTruthy();
   });
 
   it('shows spinner while googleLogin is in progress', async () => {
-    // Mock google.accounts.id
-    const renderButtonMock = vi.fn();
     const initializeMock = vi.fn(({ callback }) => {
-      // Simulate user clicking Google sign-in after a delay
       setTimeout(() => callback({ credential: 'google-id-token' }), 50);
     });
     vi.stubGlobal('google', {
-      accounts: { id: { initialize: initializeMock, renderButton: renderButtonMock, prompt: vi.fn() } },
+      accounts: { id: { initialize: initializeMock, prompt: vi.fn() } },
     });
 
     fetchQueue = [
@@ -230,7 +234,6 @@ describe('LoginPage — Google Sign-In', () => {
           initialize: vi.fn(({ callback }) => {
             callback({ credential: 'google-id-token-123' });
           }),
-          renderButton: vi.fn(),
           prompt: vi.fn(),
         },
       },
@@ -266,7 +269,6 @@ describe('LoginPage — Google Sign-In', () => {
           initialize: vi.fn(({ callback }) => {
             callback({ credential: 'bad-token' });
           }),
-          renderButton: vi.fn(),
           prompt: vi.fn(),
         },
       },

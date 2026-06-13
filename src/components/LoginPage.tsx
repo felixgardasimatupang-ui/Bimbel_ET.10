@@ -60,14 +60,13 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const googleReady = useRef(false);
+  const [googleReady, setGoogleReady] = useState(false);
 
   useEffect(() => {
     if (!getGoogleClientId()) return;
 
     const start = () => {
-      if (!window.google || googleReady.current) return;
-      googleReady.current = true;
+      if (!window.google) return;
       window.google.accounts.id.initialize({
         client_id: getGoogleClientId()!,
         callback: async (response) => {
@@ -81,6 +80,7 @@ export default function LoginPage() {
         },
         cancel_on_tap_outside: false,
       });
+      setGoogleReady(true);
     };
 
     if (window.google) {
@@ -91,20 +91,20 @@ export default function LoginPage() {
           clearInterval(id);
           start();
         }
-      }, 200);
+      }, 100);
       return () => clearInterval(id);
     }
   }, [googleLogin]);
 
   const handleGoogleClick = useCallback(() => {
-    if (!window.google?.accounts || !googleReady.current) {
+    if (!window.google?.accounts || !googleReady) {
       setError('Google Sign-In belum siap. Muat ulang halaman.');
       return;
     }
     setGoogleLoading(true);
     setError('');
     window.google.accounts.id.prompt();
-  }, []);
+  }, [googleReady]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -275,7 +275,7 @@ export default function LoginPage() {
                 </form>
 
                 {/* Google Sign-In */}
-                {getGoogleClientId() && (
+                {getGoogleClientId() && googleReady && (
                   <div className="mt-6">
                     <div className="relative mb-5">
                       <div className="absolute inset-0 flex items-center">
