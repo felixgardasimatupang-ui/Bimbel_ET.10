@@ -2,6 +2,7 @@ import app from './app.js';
 import { prisma } from './lib/prisma.js';
 import { initSentry } from './lib/sentry.js';
 import logger from './utils/logger.js';
+import crypto from 'crypto';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const REQUIRED_ENV = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const;
@@ -15,9 +16,9 @@ function validateEnv(): void {
   } else {
     const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
     if (missing.length > 0) {
-      logger.warn({ missing }, 'Missing env vars — using dev fallback secrets. Set JWT_ACCESS_SECRET & JWT_REFRESH_SECRET for production.');
-      process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-fallback-change-me';
-      process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-fallback-change-me';
+      logger.warn({ missing }, 'Missing JWT secrets — generating ephemeral dev secrets.');
+      process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || crypto.randomUUID();
+      process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || crypto.randomUUID();
     }
   }
 }
