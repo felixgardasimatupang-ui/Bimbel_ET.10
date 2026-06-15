@@ -19,5 +19,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     exclude: ['e2e/**', 'backend/**', 'node_modules/**', '.opencode/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: ['**/*.test.*', '**/*.spec.*', '**/test/**', '**/e2e/**', '**/node_modules/**', '**/dist/**', 'vite.config.ts'],
+    },
   },
 });

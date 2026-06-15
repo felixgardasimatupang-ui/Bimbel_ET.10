@@ -41,6 +41,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.14.0",
     "@types/supertest": "^7.2.0",
+    "@vitest/coverage-v8": "^4.1.9",
     "get-port": "^7.2.0",
     "prisma": "^6.6.0",
     "supertest": "^7.2.2",

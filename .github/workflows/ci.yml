@@ -24,10 +24,21 @@ jobs:
 
       - run: npm ci
 
+      - name: Security audit (frontend)
+        run: npm audit --audit-level=moderate || true
+
       - run: npm run lint
       - run: npm run lint:eslint
 
       - run: npm run test -- --run
+
+      - name: Upload frontend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/coverage-final.json
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
       - run: npm run build
 
@@ -66,6 +77,10 @@ jobs:
       - working-directory: backend
         run: npm ci
 
+      - name: Security audit (backend)
+        working-directory: backend
+        run: npm audit --audit-level=moderate || true
+
       - working-directory: backend
         run: npx prisma generate
 
@@ -73,7 +88,15 @@ jobs:
         run: npx tsc --noEmit
 
       - working-directory: backend
-        run: npm run test -- --run
+        run: npm run test:coverage -- --run
+
+      - name: Upload backend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/coverage/coverage-final.json
+          flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
       - working-directory: backend
         env:

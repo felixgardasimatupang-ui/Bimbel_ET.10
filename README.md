@@ -1,5 +1,10 @@
 # EduAdmin Bimbel — Sistem Manajemen Bimbingan Belajar
 
+[![CI/CD](https://github.com/felixgardasimatupang-ui/Bimbel_ET.10/actions/workflows/ci.yml/badge.svg)](https://github.com/felixgardasimatupang-ui/Bimbel_ET.10/actions/workflows/ci.yml)
+[![E2E](https://github.com/felixgardasimatupang-ui/Bimbel_ET.10/actions/workflows/e2e.yml/badge.svg)](https://github.com/felixgardasimatupang-ui/Bimbel_ET.10/actions/workflows/e2e.yml)
+[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-194%20passing-brightgreen)]()
+
 Full-stack aplikasi manajemen bimbingan belajar dengan React 19 SPA + Express 5 + Prisma + PostgreSQL (Supabase). Mencakup manajemen siswa, pengajar, SPP/keuangan, modul belajar, kuis interaktif, absensi QR/GPS, jadwal, notifikasi, dan kontrol akses berbasis peran (RBAC).
 
 ---

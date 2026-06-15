@@ -20,6 +20,121 @@ If a skill applies, you **MUST** invoke the `skill` tool and follow it exactly. 
 
 ---
 
+## Token Efficiency Protocol
+
+### Context Budgeting by Task Type
+
+Apply minimal context loading based on task complexity:
+
+| Task Type | Context Strategy | Max Files to Read | Tool Preference |
+|-----------|------------------|-------------------|-----------------|
+| **Typo/formatting fix** | Read target file only | 1 | Direct `read` |
+| **Simple bug fix** | Read error file + 1 related | 2-3 | Direct `read` |
+| **Feature addition** | Read target + 1 similar pattern | 3-5 | Direct `read` → `grep` if needed |
+| **API endpoint** | Schema + middleware + 1 example | 4-6 | `read` schema first, then examples |
+| **Integration work** | Both sides + contract/types | 5-8 | `grep` for interface, then `read` |
+| **Bug investigation** | Start narrow, expand if needed | Start 2, max 10 | `grep` error → `read` suspects |
+| **Architecture review** | Delegate to subagent | N/A | `task` tool (explore agent) |
+| **Refactoring** | Use AST mapper skill first | N/A | `skill` ask-ast-mapper |
+
+### Pre-Flight Checklist (Before Reading Files)
+
+**STOP and ask:**
+1. Do I know the exact file path? → Use `read` directly
+2. Do I need to search first? → Use `grep`/`glob`, not bulk reads
+3. Is this architectural? → Use `task` tool with `explore` agent
+4. Can I infer from AGENTS.md? → Check Architecture/Gotchas sections first
+
+### Hot Files (High Reuse Value)
+
+Read these first when working in their domain:
+
+**Auth & Security:**
+- `backend/src/middleware/rbac.ts` — role-based access control
+- `backend/src/middleware/auth.ts` — JWT verification
+- `src/contexts/AuthContext.tsx` — frontend auth state
+- `backend/src/routes/auth.ts` — login/register/refresh
+
+**Data Model:**
+- `backend/prisma/schema.prisma` — single source of truth for DB schema
+- `src/types.ts` — frontend TypeScript types
+- `backend/src/types/` — backend types (if exists)
+
+**Core Infrastructure:**
+- `backend/src/index.ts` — Express app setup, middleware chain
+- `src/api/client.ts` — frontend API client (token refresh logic)
+- `src/main.tsx` — React entry point
+
+**Validation:**
+- `backend/src/schemas/` — Zod validation schemas (organized by entity)
+- `src/utils/validation.ts` — frontend validation helpers
+
+### Cold Files (Read Only When Explicitly Needed)
+
+Avoid reading unless task directly involves them:
+
+- `src/data/mockData.ts` — fallback data (legacy)
+- `backend/prisma/migrations/*` — historical, read schema instead
+- `backend/prisma/seed.ts` — demo data setup
+- `src/test/**` — test files (unless fixing tests)
+- `*.md` files (except AGENTS.md for context)
+- Config files (`vite.config.ts`, `tsconfig.json`) — only when debugging build
+
+### Role-Based Agent Activation
+
+**When to act immediately:**
+- User explicitly requests an action ("fix", "add", "update", "delete")
+- Bug with clear error message + file reference
+- Verification tasks (lint, test, typecheck)
+
+**When to confirm first:**
+- Task spans >5 files
+- Breaking changes (API contracts, DB schema)
+- Ambiguous requirements ("improve", "optimize" without metrics)
+- Production operations (deploy, migrate)
+
+**When to delegate to subagent:**
+- "Find all X in the codebase" → `task` explore
+- "How does Y work?" (without file reference) → `task` explore
+- Architecture analysis → `skill` architecture-designer
+- Security audit → `skill` ask-owasp-security-review
+
+### Efficient Search Patterns
+
+**Before using `grep`:**
+1. Check if AGENTS.md already documents it (API endpoints, file structure)
+2. Use specific patterns: `grep "class UserService"` not `grep "user"`
+3. Limit scope: `--include="*.ts"` not all files
+
+**Before using `glob`:**
+1. Use precise patterns: `src/components/Login*.tsx` not `**/*.tsx`
+2. Avoid globbing when you know the path
+
+**Before using `task` explore:**
+1. Try direct `grep` + `read` first (2-3 files)
+2. Use explore only for true discovery (>5 potential files)
+
+### Context Preservation Rules
+
+**Do not re-read:**
+- Files already in conversation context (check prior messages)
+- Files you just wrote/edited (you know the content)
+- Schema after initial read (reference from memory)
+
+**Do summarize instead of quoting:**
+- Long type definitions (state the shape, not full code)
+- Enum values (list options, not full declaration)
+- Test files (describe coverage, not full test code)
+
+### Emergency Brake
+
+**If you've read >15 files and haven't started implementation:**
+1. STOP
+2. Summarize findings in 3-5 bullets
+3. Ask user: "Found X. Should I proceed with Y approach, or do you need different direction?"
+
+---
+
 ## Project
 
 Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + PostgreSQL (backend). Docker-ready with GitHub Actions CI.

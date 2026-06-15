@@ -1,0 +1,67 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: eduadmin
+          POSTGRES_PASSWORD: eduadmin_secret
+          POSTGRES_DB: eduadmin_bimbel
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate Prisma Client & push schema
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://eduadmin:eduadmin_secret@localhost:5432/eduadmin_bimbel
+        run: |
+          npx prisma generate
+          npx prisma db push
+          npx tsx prisma/seed.ts
+
+      - name: Run Playwright tests
+        env:
+          DATABASE_URL: postgresql://eduadmin:eduadmin_secret@localhost:5432/eduadmin_bimbel
+          JWT_ACCESS_SECRET: e2e-test-access-secret
+          JWT_REFRESH_SECRET: e2e-test-refresh-secret
+        run: npx playwright test
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots
+          path: test-results/
