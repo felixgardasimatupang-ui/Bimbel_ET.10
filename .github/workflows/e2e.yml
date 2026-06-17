@@ -3,13 +3,23 @@ name: E2E Tests
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md', 'docs/**', 'session.md']
   pull_request:
     branches: [main]
+    paths-ignore: ['**.md', 'docs/**', 'session.md']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e:
     name: Playwright E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
@@ -26,9 +36,9 @@ jobs:
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: 22
           cache: npm
@@ -65,3 +75,4 @@ jobs:
         with:
           name: playwright-screenshots
           path: test-results/
+          retention-days: 7

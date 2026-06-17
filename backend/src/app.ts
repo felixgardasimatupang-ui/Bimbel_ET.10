@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { defaultKeyGenerator } from 'express-rate-limit';
 import { prisma } from './lib/prisma.js';
 import authRoutes from './routes/auth.js';
 import studentRoutes from './routes/students.js';
@@ -32,6 +32,7 @@ app.use(helmet({
       upgradeInsecureRequests: [],
     },
   },
+  crossOriginEmbedderPolicy: false,
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -39,6 +40,12 @@ app.use(helmet({
   },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
+
+// Permissions-Policy: disable unnecessary browser features
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()');
+  next();
+});
 
 // CORS
 const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
@@ -62,6 +69,16 @@ logger.info(`[CORS] Allowed origins: ${corsOrigins.join(', ')}`);
 
 // Request body parsing + cookies
 app.use(express.json({ limit: '1mb' }));
+
+// Malformed JSON handler
+app.use((err: Error, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    res.status(400).json({ success: false, error: 'Format JSON tidak valid' });
+    return;
+  }
+  next(err);
+});
+
 app.use(cookieParser());
 
 // Global rate limiting
@@ -70,7 +87,9 @@ const limiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: defaultKeyGenerator,
   message: { success: false, error: 'Terlalu banyak permintaan. Silakan coba lagi nanti.' },
+  validate: { xForwardedForHeader: false },
 });
 app.use('/api/', limiter);
 
@@ -80,7 +99,9 @@ const authLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: defaultKeyGenerator,
   message: { success: false, error: 'Terlalu banyak percobaan login. Silakan coba lagi nanti.' },
+  validate: { xForwardedForHeader: false },
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
@@ -88,11 +109,17 @@ app.use('/api/auth/google', authLimiter);
 app.use('/api/auth/refresh', authLimiter);
 app.use('/api/auth/logout', authLimiter);
 
-// Request logging (exclude health check)
-app.use((req, _res, next) => {
-  if (req.path !== '/api/health') {
-    logger.info({ method: req.method, url: req.url, ip: req.ip }, 'request');
-  }
+// Request logging with response time (exclude health check)
+app.use((req, res, next) => {
+  if (req.path === '/api/health') return next();
+  const start = performance.now();
+  res.on('finish', () => {
+    const duration = (performance.now() - start).toFixed(1);
+    logger.info(
+      { method: req.method, url: req.url, status: res.statusCode, duration: `${duration}ms`, ip: req.ip },
+      'request',
+    );
+  });
   next();
 });
 

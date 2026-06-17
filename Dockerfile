@@ -21,13 +21,25 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
+RUN npm prune --omit=dev
 
 FROM nginx:1.27-alpine AS runner
 
-RUN apk add --no-cache wget
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
+    apk add --no-cache wget && \
+    rm -f /etc/nginx/conf.d/default.conf
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --chown=appuser:appuser --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+RUN chown -R appuser:appuser /usr/share/nginx/html /etc/nginx/conf.d && \
+    chmod -R 755 /usr/share/nginx/html
+
+USER appuser
+
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]

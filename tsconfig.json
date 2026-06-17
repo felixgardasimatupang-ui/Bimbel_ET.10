@@ -9,7 +9,10 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "jsx": "react-jsx",
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "backend", "e2e"]

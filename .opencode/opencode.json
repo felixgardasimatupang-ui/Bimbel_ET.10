@@ -1,7 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "9router/max-free",
-  "small_model": "9router/light-free",
   "mcp": {
     "ask-skill-kit": {
       "type": "local",
@@ -18,5 +16,13 @@
     "paths": [
       ".opencode/skills"
     ]
+  },
+  "agent": {
+    "explore": {
+      "model": "9router/qwen3-coder"
+    },
+    "general": {
+      "model": "9router/deepseek-agentic"
+    }
   }
 }

@@ -11,18 +11,26 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/tsconfig.json ./
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+RUN chown -R appuser:appgroup /app
+
+COPY --chown=appuser:appgroup --from=builder /app/package*.json ./
+COPY --chown=appuser:appgroup --from=builder /app/node_modules ./node_modules
+COPY --chown=appuser:appgroup --from=builder /app/dist ./dist
+COPY --chown=appuser:appgroup --from=builder /app/prisma ./prisma
+COPY --chown=appuser:appgroup --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --chown=appuser:appgroup docker-entrypoint.sh /app/docker-entrypoint.sh
+
+RUN apk add --no-cache wget && \
+    chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 3001
+
+USER appuser
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+
 CMD ["/app/docker-entrypoint.sh"]

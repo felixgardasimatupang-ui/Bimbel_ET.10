@@ -1,16 +1,22 @@
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin, navigateTo } from './helpers';
 
 test.describe('Materials', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'admin@bimbel.edu');
-    await page.fill('input[type="password"]', 'admin123');
-    await page.click('button[type="submit"]');
-    await expect(page.locator('#sidebar')).toBeVisible({ timeout: 10000 });
+    await loginAsAdmin(page);
   });
 
   test('shows materials panel', async ({ page }) => {
-    await page.click('#nav_modul');
-    await expect(page.locator('#panel_modul')).toBeVisible({ timeout: 5000 });
+    await navigateTo(page, 'modul', 'modul');
+  });
+
+  test('shows material list', async ({ page }) => {
+    await navigateTo(page, 'modul', 'modul');
+    await expect(page.locator('table')).toBeVisible();
+  });
+
+  test('has subject filter', async ({ page }) => {
+    await navigateTo(page, 'modul', 'modul');
+    await expect(page.locator('select').first()).toBeVisible({ timeout: 5000 });
   });
 });

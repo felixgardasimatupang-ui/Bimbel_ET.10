@@ -163,6 +163,7 @@ model Student {
   @@index([classLevel])
   @@index([sppStatus])
   @@index([active])
+  @@index([classLevel, active])
   @@index([sppStatus, active])
   @@index([parentName])
   @@map("students")
@@ -214,6 +215,7 @@ model Teacher {
   @@index([email])
   @@index([active])
   @@index([rating])
+  @@index([rating, active])
   @@map("teachers")
 }
 
@@ -311,6 +313,7 @@ model Material {
   @@index([active])
   @@index([isLocked])
   @@index([subject, active])
+  @@index([isLocked, active])
   @@index([uploadDate])
   @@index([type])
   @@map("materials")
@@ -359,6 +362,7 @@ model Notification {
   @@index([timestamp])
   @@index([type])
   @@index([targetRole, read])
+  @@index([userId, read])
   @@map("notifications")
 }
 

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin, navigateTo } from './helpers';
 
 test.describe('Authentication', () => {
   test('shows login page when not authenticated', async ({ page }) => {
@@ -17,38 +18,18 @@ test.describe('Authentication', () => {
   });
 
   test('logs in with demo credentials and sees dashboard', async ({ page }) => {
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'admin@bimbel.edu');
-    await page.fill('input[type="password"]', 'admin123');
-    await page.click('button[type="submit"]');
-
-    await expect(page.locator('#sidebar')).toBeVisible({ timeout: 10000 });
+    await loginAsAdmin(page);
     await expect(page.locator('#panel_ringkasan')).toBeVisible({ timeout: 10000 });
   });
 
   test('can navigate between panels after login', async ({ page }) => {
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'admin@bimbel.edu');
-    await page.fill('input[type="password"]', 'admin123');
-    await page.click('button[type="submit"]');
-
-    await expect(page.locator('#sidebar')).toBeVisible({ timeout: 10000 });
-
-    await page.click('#nav_siswa');
-    await expect(page.locator('#panel_siswa')).toBeVisible({ timeout: 5000 });
-
-    await page.click('#nav_modul');
-    await expect(page.locator('#panel_modul')).toBeVisible({ timeout: 5000 });
+    await loginAsAdmin(page);
+    await navigateTo(page, 'siswa', 'siswa');
+    await navigateTo(page, 'modul', 'modul');
   });
 
   test('logout button clears session', async ({ page }) => {
-    await page.goto('/');
-    await page.fill('input[type="email"]', 'admin@bimbel.edu');
-    await page.fill('input[type="password"]', 'admin123');
-    await page.click('button[type="submit"]');
-
-    await expect(page.locator('#sidebar')).toBeVisible({ timeout: 10000 });
-
+    await loginAsAdmin(page);
     await page.click('button[aria-label="Logout"]');
     await expect(page.getByRole('heading', { name: /EduAdmin Bimbel/i })).toBeVisible({ timeout: 5000 });
   });

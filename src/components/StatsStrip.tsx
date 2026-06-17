@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Users, DollarSign, QrCode, Award } from 'lucide-react';
 import type { Siswa, Teacher } from '../types';
 
@@ -8,7 +9,7 @@ interface StatsStripProps {
   percentSPPCollected: number;
 }
 
-export default function StatsStrip({ siswas, teachers, totalSPPCollected, percentSPPCollected }: StatsStripProps) {
+const StatsStrip = memo(function StatsStrip({ siswas, teachers, totalSPPCollected, percentSPPCollected }: StatsStripProps) {
   const checkedInCount = siswas.filter((s: Siswa) => s.locationCheckedIn).length;
   const attendancePct = siswas.length > 0 ? Math.round((checkedInCount / siswas.length) * 100) : 0;
   const avgRating = teachers.length > 0
@@ -67,4 +68,6 @@ export default function StatsStrip({ siswas, teachers, totalSPPCollected, percen
       </div>
     </div>
   );
-}
+});
+
+export default StatsStrip;

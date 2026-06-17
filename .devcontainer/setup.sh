@@ -14,6 +14,12 @@ fi
 
 echo "opencode $(opencode --version) ready"
 
+# Install Hermes CLI if not present
+if ! command -v hermes &>/dev/null; then
+    echo "Installing Hermes CLI..."
+    npm install -g hermes@latest 2>/dev/null || echo "Warning: Hermes installation failed"
+fi
+
 # Extract bundled skills into project .opencode/skills/
 if [ -f "$WORKSPACE/.opencode-skills.tar.gz" ]; then
     echo "Extracting skills to $SKILLS_DIR ..."

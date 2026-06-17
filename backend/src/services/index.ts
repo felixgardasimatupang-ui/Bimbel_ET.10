@@ -1,0 +1,8 @@
+export { StudentService } from './StudentService.js';
+export { TeacherService } from './TeacherService.js';
+export { FinanceService } from './FinanceService.js';
+export { MaterialService } from './MaterialService.js';
+export { NotificationService } from './NotificationService.js';
+export { ScheduleService } from './ScheduleService.js';
+export { AuditService } from './AuditService.js';
+export { AuthService } from './AuthService.js';
