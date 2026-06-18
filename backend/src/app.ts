@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import rateLimit, { defaultKeyGenerator } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { prisma } from './lib/prisma.js';
 import authRoutes from './routes/auth.js';
 import studentRoutes from './routes/students.js';
@@ -87,7 +87,7 @@ const limiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: defaultKeyGenerator,
+  keyGenerator: ipKeyGenerator,
   message: { success: false, error: 'Terlalu banyak permintaan. Silakan coba lagi nanti.' },
   validate: { xForwardedForHeader: false },
 });
@@ -99,7 +99,7 @@ const authLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: defaultKeyGenerator,
+  keyGenerator: ipKeyGenerator,
   message: { success: false, error: 'Terlalu banyak percobaan login. Silakan coba lagi nanti.' },
   validate: { xForwardedForHeader: false },
 });
