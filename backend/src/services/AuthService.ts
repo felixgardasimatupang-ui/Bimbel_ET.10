@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma.js';
 import { createAuditLog } from '../utils/audit.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../utils/logger.js';
+import { StandaloneAuthService } from './StandaloneAuthService.js';
 
 const JWT_SECRET = process.env.JWT_ACCESS_SECRET!;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
@@ -23,72 +24,107 @@ function signAccessToken(user: { id: string; email: string; role: string; provid
   );
 }
 
+function isSupabaseReachable(): boolean {
+  const url = process.env.SUPABASE_URL || '';
+  return !!(url && (url.startsWith('http://') || url.startsWith('https://')));
+}
+
+function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError && (err as any).cause?.code === 'ECONNREFUSED';
+}
+
+const standalone = new StandaloneAuthService();
+
 export class AuthService {
   async register(data: { email: string; password: string; name: string }) {
+    if (!isSupabaseReachable()) {
+      return standalone.register(data);
+    }
+
     const exists = await prisma.user.findUnique({ where: { email: data.email } });
     if (exists) throw new AppError(409, 'Email sudah terdaftar');
 
-    const { data: supabaseData, error: supabaseError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true,
-    });
-
-    if (supabaseError) {
-      logger.error({ supabaseError }, 'Supabase register error');
-      throw new AppError(500, 'Gagal mendaftarkan user di Supabase Auth');
-    }
-
-    const supabaseUid = supabaseData.user.id;
-
-    const user = await prisma.user.create({
-      data: {
+    try {
+      const { data: supabaseData, error: supabaseError } = await supabaseAdmin!.auth.admin.createUser({
         email: data.email,
-        password: '',
-        name: data.name,
-        role: 'ADMIN',
-        supabaseUid,
-      },
-      select: { id: true, email: true, name: true, role: true, supabaseUid: true },
-    });
+        password: data.password,
+        email_confirm: true,
+      });
 
-    const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
+      if (supabaseError) {
+        logger.error({ supabaseError }, 'Supabase register error');
+        throw new AppError(500, 'Gagal mendaftarkan user di Supabase Auth');
+      }
 
-    let accessToken = '';
-    let refreshToken = '';
-    if (!signInError && signInData.session) {
-      accessToken = signInData.session.access_token;
-      refreshToken = signInData.session.refresh_token;
+      const supabaseUid = supabaseData.user.id;
+
+      const user = await prisma.user.create({
+        data: {
+          email: data.email,
+          password: '',
+          name: data.name,
+          role: 'ADMIN',
+          supabaseUid,
+        },
+        select: { id: true, email: true, name: true, role: true, supabaseUid: true },
+      });
+
+      const { data: signInData, error: signInError } = await supabaseAdmin!.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      let accessToken = '';
+      let refreshToken = '';
+      if (!signInError && signInData.session) {
+        accessToken = signInData.session.access_token;
+        refreshToken = signInData.session.refresh_token;
+      }
+
+      await createAuditLog({ userId: user.id, action: AuditAction.REGISTER, entity: AuditEntity.user, entityId: user.id });
+
+      return { user, accessToken, refreshToken };
+    } catch (err) {
+      if (isNetworkError(err)) {
+        logger.warn('Supabase unreachable, falling back to standalone register');
+        return standalone.register(data);
+      }
+      throw err;
     }
-
-    await createAuditLog({ userId: user.id, action: AuditAction.REGISTER, entity: AuditEntity.user, entityId: user.id });
-
-    return { user, accessToken, refreshToken };
   }
 
   async login(data: { email: string; password: string }) {
-    const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
+    if (!isSupabaseReachable()) {
+      return standalone.login(data.email, data.password);
+    }
 
-    if (signInError) throw new AppError(401, 'Email atau password salah');
+    try {
+      const { data: signInData, error: signInError } = await supabaseAdmin!.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
 
-    const supabaseUid = signInData.user.id;
-    const dbUser = await prisma.user.findUnique({ where: { supabaseUid } });
+      if (signInError) throw new AppError(401, 'Email atau password salah');
 
-    if (!dbUser || !dbUser.active) throw new AppError(401, 'User tidak ditemukan atau tidak aktif');
+      const supabaseUid = signInData.user.id;
+      const dbUser = await prisma.user.findUnique({ where: { supabaseUid } });
 
-    await createAuditLog({ userId: dbUser.id, action: AuditAction.LOGIN, entity: AuditEntity.user, entityId: dbUser.id });
+      if (!dbUser || !dbUser.active) throw new AppError(401, 'User tidak ditemukan atau tidak aktif');
 
-    return {
-      user: { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role },
-      accessToken: signInData.session.access_token,
-      refreshToken: signInData.session.refresh_token,
-    };
+      await createAuditLog({ userId: dbUser.id, action: AuditAction.LOGIN, entity: AuditEntity.user, entityId: dbUser.id });
+
+      return {
+        user: { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role },
+        accessToken: signInData.session.access_token,
+        refreshToken: signInData.session.refresh_token,
+      };
+    } catch (err) {
+      if (isNetworkError(err)) {
+        logger.warn('Supabase unreachable, falling back to standalone login');
+        return standalone.login(data.email, data.password);
+      }
+      throw err;
+    }
   }
 
   async googleLogin(data: { idToken: string }) {
@@ -159,7 +195,7 @@ export class AuthService {
 
     // Try 1: Supabase refresh (for email/password users)
     try {
-      const { data: sessionData, error: refreshError } = await supabaseAdmin.auth.refreshSession({
+      const { data: sessionData, error: refreshError } = await supabaseAdmin!.auth.refreshSession({
         refresh_token: refreshTokenCookie,
       });
 

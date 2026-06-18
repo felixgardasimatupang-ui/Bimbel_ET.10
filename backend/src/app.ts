@@ -87,7 +87,7 @@ const limiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: ipKeyGenerator,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
   message: { success: false, error: 'Terlalu banyak permintaan. Silakan coba lagi nanti.' },
   validate: { xForwardedForHeader: false },
 });
@@ -99,7 +99,7 @@ const authLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: ipKeyGenerator,
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
   message: { success: false, error: 'Terlalu banyak percobaan login. Silakan coba lagi nanti.' },
   validate: { xForwardedForHeader: false },
 });

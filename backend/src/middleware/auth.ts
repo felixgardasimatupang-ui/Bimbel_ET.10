@@ -20,25 +20,27 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   }
 
   // Try 1: Verify as Supabase JWT (existing email/password users)
-  try {
-    const { data: { user: supabaseUser }, error } = await supabaseAdmin.auth.getUser(token);
-    if (!error && supabaseUser) {
-      const supabaseUid = supabaseUser.id;
-      const dbUser = await prisma.user.findUnique({ where: { supabaseUid } });
+  if (supabaseAdmin) {
+    try {
+      const { data: { user: supabaseUser }, error } = await supabaseAdmin.auth.getUser(token);
+      if (!error && supabaseUser) {
+        const supabaseUid = supabaseUser.id;
+        const dbUser = await prisma.user.findUnique({ where: { supabaseUid } });
 
-      if (dbUser && dbUser.active) {
-        req.user = {
-          userId: dbUser.id,
-          email: dbUser.email,
-          role: dbUser.role,
-          supabaseUid,
-        };
-        next();
-        return;
+        if (dbUser && dbUser.active) {
+          req.user = {
+            userId: dbUser.id,
+            email: dbUser.email,
+            role: dbUser.role,
+            supabaseUid,
+          };
+          next();
+          return;
+        }
       }
+    } catch {
+      // fall through to custom JWT check
     }
-  } catch {
-    // fall through to custom JWT check
   }
 
   // Try 2: Verify as custom JWT (Google OAuth users)

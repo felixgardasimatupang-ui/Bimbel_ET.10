@@ -6,3 +6,4 @@ export { NotificationService } from './NotificationService.js';
 export { ScheduleService } from './ScheduleService.js';
 export { AuditService } from './AuditService.js';
 export { AuthService } from './AuthService.js';
+export { StandaloneAuthService } from './StandaloneAuthService.js';
