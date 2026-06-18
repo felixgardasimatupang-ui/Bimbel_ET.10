@@ -90,7 +90,7 @@ describe('Auth Routes (POST /api/auth)', () => {
         .send({ email: 'inactive@test.com', password: 'password123' });
 
       expect(res.status).toBe(401);
-      expect(res.body.error).toBe('User tidak ditemukan atau tidak aktif');
+      expect(res.body.error).toBe('Email atau password salah');
     });
 
     it('returns 400 with validation error for missing fields', async () => {

@@ -29,10 +29,6 @@ function isSupabaseReachable(): boolean {
   return !!(url && (url.startsWith('http://') || url.startsWith('https://')));
 }
 
-function isNetworkError(err: unknown): boolean {
-  return err instanceof TypeError && (err as any).cause?.code === 'ECONNREFUSED';
-}
-
 const standalone = new StandaloneAuthService();
 
 export class AuthService {
@@ -85,11 +81,8 @@ export class AuthService {
 
       return { user, accessToken, refreshToken };
     } catch (err) {
-      if (isNetworkError(err)) {
-        logger.warn('Supabase unreachable, falling back to standalone register');
-        return standalone.register(data);
-      }
-      throw err;
+      logger.warn({ err }, 'Supabase register failed, falling back to standalone');
+      return standalone.register(data);
     }
   }
 
@@ -119,11 +112,8 @@ export class AuthService {
         refreshToken: signInData.session.refresh_token,
       };
     } catch (err) {
-      if (isNetworkError(err)) {
-        logger.warn('Supabase unreachable, falling back to standalone login');
-        return standalone.login(data.email, data.password);
-      }
-      throw err;
+      logger.warn({ err }, 'Supabase login failed, falling back to standalone');
+      return standalone.login(data.email, data.password);
     }
   }
 

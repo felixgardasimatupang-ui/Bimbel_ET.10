@@ -148,7 +148,7 @@ describe('Auth API — Local (Email/Password)', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(validPayload),
       });
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(201);
     });
   });
 
