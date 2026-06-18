@@ -25,17 +25,13 @@ RUN npm prune --omit=dev
 
 FROM nginx:1.27-alpine AS runner
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
-    apk add --no-cache wget && \
+RUN apk add --no-cache wget && \
     rm -f /etc/nginx/conf.d/default.conf
 
-COPY --chown=appuser:appuser --from=builder /app/dist /usr/share/nginx/html
+COPY --chown=101:101 --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-RUN chown -R appuser:appuser /usr/share/nginx/html /etc/nginx/conf.d && \
-    chmod -R 755 /usr/share/nginx/html
-
-USER appuser
+RUN chmod -R 755 /usr/share/nginx/html
 
 EXPOSE 3000
 

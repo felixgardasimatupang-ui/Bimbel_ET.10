@@ -19,6 +19,7 @@ RUN chown -R appuser:appgroup /app
 COPY --chown=appuser:appgroup --from=builder /app/package*.json ./
 COPY --chown=appuser:appgroup --from=builder /app/node_modules ./node_modules
 COPY --chown=appuser:appgroup --from=builder /app/dist ./dist
+COPY --chown=appuser:appgroup --from=builder /app/src ./src
 COPY --chown=appuser:appgroup --from=builder /app/prisma ./prisma
 COPY --chown=appuser:appgroup --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --chown=appuser:appgroup docker-entrypoint.sh /app/docker-entrypoint.sh
