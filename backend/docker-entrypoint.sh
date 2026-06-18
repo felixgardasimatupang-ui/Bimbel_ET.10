@@ -3,6 +3,11 @@ set -e
 
 export DATABASE_URL_DIRECT="${DATABASE_URL_DIRECT:-$DATABASE_URL}"
 
+# Railway sets $PORT dynamically; update nginx config if needed
+if [ -n "$PORT" ]; then
+  sed -i "s/listen  *3000;/listen ${PORT};/" /etc/nginx/http.d/default.conf
+fi
+
 echo "Syncing database schema..."
 npx prisma db push --accept-data-loss
 
