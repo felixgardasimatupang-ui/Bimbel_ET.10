@@ -199,7 +199,7 @@ export default function AuditLogPanel() {
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex-1 overflow-hidden flex flex-col">
-        <div ref={scrollRef} className="overflow-x-auto overflow-y-auto flex-1 max-h-[65vh] relative">
+        <div ref={scrollRef} data-testid="virtual-scroll-container" className="overflow-x-auto overflow-y-auto flex-1 max-h-[65vh] relative">
           {loading && logs.length === 0 ? (
             <div className="p-6">
               <TableSkeleton rows={8} cols={7} />
@@ -304,6 +304,7 @@ function VirtualizedAuditTable({
           return (
             <tr
               key={`${log.id}-${virtualItem.index}`}
+              data-index={virtualItem.index}
               style={{ height: `${virtualItem.size}px`, transform: `translateY(${virtualItem.start}px)` }}
               className={`hover:bg-slate-50 transition-colors absolute w-full ${
                 isLive ? 'bg-emerald-50/50 border-l-2 border-l-emerald-500' : ''

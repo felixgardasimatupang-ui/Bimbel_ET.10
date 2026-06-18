@@ -22,6 +22,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom'],
           'vendor-charts': ['recharts'],
           'vendor-query': ['@tanstack/react-query'],
+          'vendor-icons': ['lucide-react'],
         },
       },
     },

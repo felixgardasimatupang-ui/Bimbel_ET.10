@@ -235,7 +235,7 @@ export default function SiswaPanel() {
             <span className="text-[10px] text-slate-500 font-mono">Filter Hasil: {optimisticSiswas.length}</span>
           </div>
 
-          <div ref={tableRef} className="flex-1 overflow-y-auto" style={{ maxHeight: '65vh' }}>
+          <div ref={tableRef} data-testid="virtual-scroll-container" className="flex-1 overflow-y-auto" style={{ maxHeight: '65vh' }}>
             {optimisticSiswas.length === 0 ? (
               <TableSkeleton rows={5} cols={6} />
             ) : (
@@ -257,6 +257,7 @@ export default function SiswaPanel() {
                       return (
                         <tr
                           key={student.id}
+                          data-index={virtualItem.index}
                           onClick={() => setSelectedSiswaId(student.id)}
                           style={{ height: `${virtualItem.size}px`, transform: `translateY(${virtualItem.start}px)` }}
                           className={`hover:bg-slate-50/80 cursor-pointer transition absolute w-full ${selectedSiswaId === student.id ? 'bg-blue-50/40 border-l-2 border-blue-600' : ''}`}
