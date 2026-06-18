@@ -4,7 +4,7 @@ import { initSentry } from './lib/sentry.js';
 import { validateEnv } from './schemas/env.js';
 import logger from './utils/logger.js';
 
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = parseInt(process.env.API_PORT || '3001', 10);
 
 async function main() {
   try {
