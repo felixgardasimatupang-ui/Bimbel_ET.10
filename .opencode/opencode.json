@@ -11,18 +11,5 @@
       "command": ["npx", "chrome-devtools-mcp@latest"],
       "enabled": true
     }
-  },
-  "skills": {
-    "paths": [
-      ".opencode/skills"
-    ]
-  },
-  "agent": {
-    "explore": {
-      "model": "9router/qwen3-coder"
-    },
-    "general": {
-      "model": "9router/deepseek-agentic"
-    }
   }
 }

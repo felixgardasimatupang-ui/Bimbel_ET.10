@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo, useRef, type ReactNode, type FormEvent } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect, type ReactNode, type FormEvent } from 'react';
 import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule, UserRole, InteractiveQuiz } from '../types';
 import {
   INITIAL_SISWA, INITIAL_TEACHERS, INITIAL_TRANSACTIONS,
@@ -6,10 +6,11 @@ import {
   INITIAL_QUIZZES, INITIAL_NOTIFIKASI,
 } from '../data/mockData';
 import { usePersistedState } from '../hooks/usePersistedState';
-import { createId, validateEmail, sanitizeCSV, GPS_DEFAULT, calculateQuizScore } from '../utils/validation';
+import { validateEmail, sanitizeCSV, GPS_DEFAULT, calculateQuizScore } from '../utils/validation';
 import { useToast } from '../hooks/useToast';
 import { useSync } from '../hooks/useSync';
 import { useAuth } from './AuthContext';
+import { StudentsApi, TeachersApi, FinanceApi, MaterialsApi, NotificationsApi, SchedulesApi } from '../api/client';
 
 interface FormDataSiswa {
   name: string; classLevel: string; email: string;
@@ -156,6 +157,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [materiSearch, setMateriSearch] = useState('');
   const [materiSubjectFilter, setMateriSubjectFilter] = useState('Semua');
 
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const loadData = async () => {
+      try {
+        const [sRes, tRes, fRes, mRes, nRes] = await Promise.all([
+          StudentsApi.list({}, controller.signal),
+          TeachersApi.list(),
+          FinanceApi.transactions(),
+          MaterialsApi.list(),
+          NotificationsApi.list(),
+          SchedulesApi.list(),
+        ]);
+        if (!controller.signal.aborted) {
+          if (sRes.success && sRes.data) setSiswas(sRes.data.data);
+          if (tRes.success && tRes.data) setTeachers(tRes.data.data);
+          if (fRes.success && fRes.data) setTransactions(fRes.data.data);
+          if (mRes.success && mRes.data) setMateris(mRes.data.data);
+          if (nRes.success && nRes.data) setNotifs(nRes.data.data);
+        }
+      } catch {
+        // fallback ke localStorage/mockData
+      }
+    };
+
+    loadData();
+    return () => controller.abort();
+  }, []);
+
   const currentUserRole = authUser?.role || 'ADMIN';
 
   // Form state
@@ -253,7 +287,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [siswas]);
 
   // Actions
-  const handleAddSiswa = useCallback((e: FormEvent) => {
+  const handleAddSiswa = useCallback(async (e: FormEvent) => {
     e.preventDefault();
     if (!checkRateLimit('addSiswa')) return;
     if (!requireRole(['ADMIN', 'GURU'], 'mendaftarkan siswa')) return;
@@ -273,29 +307,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
       triggerToast('Nominal SPP harus lebih dari 0!', 'warn');
       return;
     }
-    const newStudent: Siswa = {
-      id: createId('SIS'), name: formDataSiswa.name, classLevel: formDataSiswa.classLevel,
-      performanceScore: 80.0, attendanceRate: 100.0, email: formDataSiswa.email,
-      parentName: formDataSiswa.parentName || 'Tidak Diketahui',
-      parentEmail: formDataSiswa.parentEmail || '',
-      sppStatus: 'BELUM_BAYAR', sppAmount: formDataSiswa.sppAmount,
-      progressHistory: [{ month: 'Apr', score: 80, attendance: 100 }, { month: 'Mei', score: 80, attendance: 100 }],
-      subjectsScore: [
-        { name: 'Matematika', score: 80 }, { name: 'Fisika', score: 80 },
-        { name: 'Kimia', score: 80 }, { name: 'B. Inggris', score: 80 },
-      ],
-      qrCodeData: `QR-${formDataSiswa.name.replace(/\s+/g, '-').toUpperCase()}-${Date.now().toString().slice(-4)}`,
-      locationCheckedIn: false,
-    };
-    setSiswas((prev) => [...prev, newStudent]);
+    const res = await StudentsApi.create({
+      name: formDataSiswa.name,
+      classLevel: formDataSiswa.classLevel,
+      email: formDataSiswa.email,
+      parentName: formDataSiswa.parentName,
+      parentEmail: formDataSiswa.parentEmail,
+      sppAmount: formDataSiswa.sppAmount,
+    });
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal mendaftarkan siswa', 'warn');
+      return;
+    }
+    setSiswas((prev) => [...prev, res.data as Siswa]);
     setNewSiswaOpen(false);
     setFormDataSiswa({ name: '', classLevel: '12 SMA - IPA', email: '', parentName: '', parentEmail: '', sppAmount: 750000 });
-    triggerToast(`Siswa ${newStudent.name} sukses didaftarkan!`, 'success');
-    addSyncLog(`Registered new student ${newStudent.name} with unique QR identifier.`);
-    trackOfflineChange();
-  }, [formDataSiswa, setSiswas, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit, requireRole]);
+    triggerToast(`Siswa ${formDataSiswa.name} sukses didaftarkan!`, 'success');
+    addSyncLog(`Registered new student ${formDataSiswa.name} via API.`);
+  }, [formDataSiswa, setSiswas, triggerToast, addSyncLog, checkRateLimit, requireRole]);
 
-  const handleAddMateri = useCallback((e: FormEvent) => {
+  const handleAddMateri = useCallback(async (e: FormEvent) => {
     e.preventDefault();
     if (!checkRateLimit('addMateri')) return;
     if (!requireRole(['ADMIN', 'GURU'], 'mengunggah materi')) return;
@@ -307,45 +338,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
       triggerToast('Tingkat kelas sasaran wajib diisi!', 'warn');
       return;
     }
-    const newMat: MateriBelajar = {
-      id: createId('MAT'),
-      title: formDataMateri.title, subject: formDataMateri.subject,
-      targetLevel: formDataMateri.targetLevel, type: formDataMateri.type,
-      url: '#', uploadDate: new Date().toISOString().split('T')[0],
-      downloadsCount: 0,
-      author: currentUserRole === 'ADMIN' ? 'Administrator' : 'Pengajar Terverifikasi',
+    const res = await MaterialsApi.create({
+      title: formDataMateri.title,
+      subject: formDataMateri.subject,
+      targetLevel: formDataMateri.targetLevel,
+      type: formDataMateri.type,
       isLocked: formDataMateri.isLocked,
-    };
-    setMateris((prev) => [...prev, newMat]);
+    });
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal mengunggah materi', 'warn');
+      return;
+    }
+    setMateris((prev) => [...prev, res.data as MateriBelajar]);
     setNewMateriOpen(false);
     setFormDataMateri({ title: '', subject: 'Matematika', targetLevel: '12 SMA', type: 'PDF', isLocked: false });
-    triggerToast(`Materi "${newMat.title}" berhasil diunggah dan terindeks!`, 'success');
-    addSyncLog(`Uploaded new learning topic: "${newMat.title}" locked state: ${newMat.isLocked}`);
-    trackOfflineChange();
-  }, [formDataMateri, currentUserRole, setMateris, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit, requireRole]);
+    triggerToast(`Materi "${formDataMateri.title}" berhasil diunggah!`, 'success');
+    addSyncLog(`Uploaded new learning topic: "${formDataMateri.title}" via API.`);
+  }, [formDataMateri, setMateris, triggerToast, addSyncLog, checkRateLimit, requireRole]);
 
-  const simulateCheckinSiswa = useCallback((siswaId: string, checkInMethod: 'QR_SCAN' | 'LOKASI') => {
+  const simulateCheckinSiswa = useCallback(async (siswaId: string, checkInMethod: 'QR_SCAN' | 'LOKASI') => {
     if (!checkRateLimit('checkin', 300)) return;
     if (!requireRole(['ADMIN', 'GURU'], 'melakukan presensi')) return;
-    const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    let studentName = 'Siswa';
-    setSiswas((prev) => prev.map((student) => {
-      if (student.id === siswaId) {
-        studentName = student.name;
-        return {
-          ...student, locationCheckedIn: true, checkInTime: timeNow,
-          performanceScore: Math.min(100, Math.round((student.performanceScore + 1.2) * 10) / 10),
-          attendanceRate: Math.min(100, Math.round((student.attendanceRate + 2.5) * 10) / 10),
-          latitude: GPS_DEFAULT.lat + (Math.random() - 0.5) * 0.0001,
-          longitude: GPS_DEFAULT.lon + (Math.random() - 0.5) * 0.0001,
-        };
-      }
-      return student;
-    }));
-    triggerToast(`Absensi terdeteksi via ${checkInMethod}! Jam: ${timeNow}. Poin performa ${studentName} meningkat (+1.2)!`, 'success');
-    addSyncLog(`Student verified attendance using ${checkInMethod}: ${studentName}`);
-    trackOfflineChange();
-  }, [setSiswas, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit, requireRole]);
+    const res = await StudentsApi.checkin(siswaId, checkInMethod);
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal melakukan presensi', 'warn');
+      return;
+    }
+    setSiswas((prev) => prev.map((s) => s.id === siswaId ? (res.data as Siswa) : s));
+    triggerToast(`Absensi terdeteksi via ${checkInMethod}!`, 'success');
+    addSyncLog(`Student verified attendance using ${checkInMethod}: ${(res.data as Siswa).name}`);
+  }, [setSiswas, triggerToast, addSyncLog, checkRateLimit, requireRole]);
 
   const queryBrowserGeolocation = useCallback(() => {
     setGpsLoading(true);
@@ -371,7 +393,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [triggerToast, addSyncLog]);
 
-  const handleSubmitTeacherEvaluation = useCallback((e: FormEvent) => {
+  const handleSubmitTeacherEvaluation = useCallback(async (e: FormEvent) => {
     e.preventDefault();
     if (!checkRateLimit('evalTeacher')) return;
     if (!requireRole(['ADMIN'], 'mengevaluasi pengajar')) return;
@@ -384,27 +406,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       triggerToast('Skor evaluasi harus antara 1-5!', 'warn');
       return;
     }
-    const average = Math.round(((pedagogicalScore + professionalScore + socialScore) / 3) * 10) / 10;
-    const targetTch = teachers.find((t) => t.id === evalTeacherId);
-    setTeachers((prev) => prev.map((t) => {
-      if (t.id === evalTeacherId) {
-        const newEval = {
-          id: `EV-${Date.now()}`, date: new Date().toISOString().split('T')[0],
-          reviewer: 'Admin Utama (Sesi Evaluasi Berkala)',
-          pedagogical: pedagogicalScore, professional: professionalScore,
-          social: socialScore, feedback: evalFeedback || 'Performa mengajar yang dipertahankan dengan evaluasi berkala.',
-        };
-        const newEvaluations = [newEval, ...t.evaluations];
-        const newOverallRating = Math.round((newEvaluations.reduce((acc, ev) => acc + (ev.pedagogical + ev.professional + ev.social) / 3, 0) / newEvaluations.length) * 10) / 10;
-        return { ...t, rating: newOverallRating, evaluationScore: Math.min(100, Math.round((newOverallRating / 5) * 100)), evaluations: newEvaluations };
-      }
-      return t;
-    }));
-    triggerToast(`Evaluasi pengajar ${targetTch?.name} berhasil direkam ke database!`, 'success');
-    addSyncLog(`Submitted regular score review for ${targetTch?.name}: Avg: ${average}/5.0`);
+    const res = await TeachersApi.evaluate(evalTeacherId, {
+      pedagogical: pedagogicalScore,
+      professional: professionalScore,
+      social: socialScore,
+      feedback: evalFeedback,
+    });
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal menyimpan evaluasi', 'warn');
+      return;
+    }
+    setTeachers((prev) => prev.map((t) => t.id === evalTeacherId ? (res.data as Teacher) : t));
+    triggerToast(`Evaluasi pengajar berhasil direkam!`, 'success');
+    addSyncLog(`Submitted evaluation for teacher via API.`);
     setEvalFeedback('');
-    trackOfflineChange();
-  }, [evalTeacherId, pedagogicalScore, professionalScore, socialScore, evalFeedback, teachers, setTeachers, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit, requireRole]);
+  }, [evalTeacherId, pedagogicalScore, professionalScore, socialScore, evalFeedback, setTeachers, triggerToast, addSyncLog, checkRateLimit, requireRole]);
 
   const handleStartQuiz = useCallback((quiz: InteractiveQuiz) => {
     setActiveQuizPlay(quiz);
@@ -447,37 +463,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     trackOfflineChange();
   }, [activeQuizPlay, quizAnswers, selectedSiswaId, setSiswas, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit]);
 
-  const toggleSppPaymentStatus = useCallback((siswaId: string) => {
+  const toggleSppPaymentStatus = useCallback(async (siswaId: string) => {
     if (!checkRateLimit('toggleSpp')) return;
     if (!requireRole(['ADMIN'], 'mengubah status SPP')) return;
     const targetStudent = siswas.find((s) => s.id === siswaId);
-    setSiswas((prev) => prev.map((s) => {
-      if (s.id === siswaId) {
-        const nextStatus = s.sppStatus === 'LUNAS' ? 'BELUM_BAYAR' as const : 'LUNAS' as const;
-        if (nextStatus === 'LUNAS') {
-          const existingThisMonth = transactions.some((tx) =>
-            tx.payeeName.includes(s.id) && tx.type === 'SPP_MASUK' &&
-            tx.date.startsWith(new Date().toISOString().split('T')[0].slice(0, 7))
-          );
-          if (!existingThisMonth) {
-            const newTx: Transaksi = {
-              id: createId('TX'),
-              amount: s.sppAmount, type: 'SPP_MASUK',
-              date: new Date().toISOString().split('T')[0],
-              payeeName: `${s.id} - ${s.name} (Wali ${s.parentName})`,
-              status: 'LUNAS', notes: 'SPP pembayaran instan via panel admin',
-            };
-            setTransactions((prevTx) => [newTx, ...prevTx]);
-          }
-        }
-        return { ...s, sppStatus: nextStatus };
-      }
-      return s;
-    }));
-    triggerToast(`Status pembayaran SPP ${targetStudent?.name} disinkronkan berkala!`, 'info');
-    addSyncLog(`Toggled invoice state to payment verification: ${targetStudent?.name}`);
-    trackOfflineChange();
-  }, [siswas, transactions, setSiswas, setTransactions, triggerToast, addSyncLog, trackOfflineChange, checkRateLimit, requireRole]);
+    const res = await StudentsApi.toggleSpp(siswaId);
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal mengubah status SPP', 'warn');
+      return;
+    }
+    setSiswas((prev) => prev.map((s) => s.id === siswaId ? (res.data as Siswa) : s));
+    if ((res.data as Siswa).sppStatus === 'LUNAS') {
+      setTransactions((prev) => [{
+        id: `TX-${Date.now()}`, amount: (res.data as Siswa).sppAmount,
+        type: 'SPP_MASUK', date: new Date().toISOString().split('T')[0],
+        payeeName: `${(res.data as Siswa).id} - ${(res.data as Siswa).name}`,
+        status: 'LUNAS', notes: 'SPP via panel admin',
+      } as Transaksi, ...prev]);
+    }
+    triggerToast(`Status SPP ${targetStudent?.name} diperbarui!`, 'success');
+    addSyncLog(`Toggled SPP status via API: ${targetStudent?.name}`);
+  }, [siswas, setSiswas, setTransactions, triggerToast, addSyncLog, checkRateLimit, requireRole]);
 
   const handleRegenerateQr = useCallback(() => {
     if (!requireRole(['ADMIN'], 'regenerasi kode QR')) return;
@@ -509,48 +515,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addSyncLog('Exported student database performance file to Local CSV format.');
   }, [siswas, triggerToast, addSyncLog]);
 
-  const triggerAutomatedSPPNotification = useCallback(() => {
+  const triggerAutomatedSPPNotification = useCallback(async () => {
     if (!requireRole(['ADMIN'], 'mengirim pengingat SPP')) return;
-    const belumBayarList = siswas.filter((s) => s.sppStatus === 'BELUM_BAYAR');
-    if (belumBayarList.length === 0) {
-      triggerToast('Semua siswa saat ini telah membayar SPP bulan ini!', 'info');
+    const res = await NotificationsApi.sppReminder();
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal mengirim pengingat SPP', 'warn');
       return;
     }
-    const newNotifs: Notifikasi[] = belumBayarList.map((siswa, i) => ({
-      id: `NT-SPP-${Date.now()}-${i}`,
-      title: `Tagihan SPP: ${siswa.name}`,
-      message: `Pemberitahuan kepada Wali Murid ${siswa.parentName}, masa tenggang pembayaran SPP Rp ${siswa.sppAmount.toLocaleString('id-ID')} untuk siswa ${siswa.name} akan segera berakhir.`,
-      type: 'SPP_INFO' as const,
-      timestamp: new Date().toISOString(),
-      read: false,
-      targetRole: 'WALI_MURID' as const,
-    }));
-    setNotifs((prev) => [newNotifs[0], ...prev]);
-    triggerToast(`Pengingat SPP otomatis terkirim untuk ${belumBayarList.length} wali murid!`, 'success');
-    addSyncLog(`Automated push notification sent to ${belumBayarList.length} parents regarding outstanding fees.`);
-  }, [siswas, triggerToast, addSyncLog, requireRole]);
+    const notifRes = await NotificationsApi.list();
+    if (notifRes.success && notifRes.data) setNotifs(notifRes.data.data);
+    triggerToast('Pengingat SPP otomatis terkirim!', 'success');
+    addSyncLog('Automated SPP reminder sent via API.');
+  }, [setNotifs, triggerToast, addSyncLog, requireRole]);
 
-  const triggerExamReminderNotification = useCallback(() => {
+  const triggerExamReminderNotification = useCallback(async () => {
     if (!requireRole(['ADMIN'], 'mengirim pengingat ujian')) return;
-    const newNotif: Notifikasi = {
-      id: `NT-EXM-${Date.now()}`,
-      title: 'PENGINGAT UJIAN: Evaluasi Tengah Semester',
-      message: 'Ujian simulasi UTBK Mandiri dijadwalkan lusa. Mohon seluruh siswa mengunduh lembar latihan di modul belajar kuis interaktif.',
-      type: 'UJIAN_INFO',
-      timestamp: new Date().toISOString(),
-      read: false,
-      targetRole: 'ALL',
-    };
-    setNotifs((prev) => [newNotif, ...prev]);
-    triggerToast('Push notifikasi jadwal ujian berhasil disiarkan ke seluruh siswa & pengajar!', 'info');
-    addSyncLog('Broadcasted general exam timeline notifications across all node terminals.');
-  }, [triggerToast, addSyncLog, requireRole]);
+    const res = await NotificationsApi.examReminder();
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal mengirim pengingat ujian', 'warn');
+      return;
+    }
+    const notifRes = await NotificationsApi.list();
+    if (notifRes.success && notifRes.data) setNotifs(notifRes.data.data);
+    triggerToast('Pengingat ujian berhasil disiarkan!', 'info');
+    addSyncLog('Exam reminder broadcast via API.');
+  }, [setNotifs, triggerToast, addSyncLog, requireRole]);
 
-  const handleDownloadMateri = useCallback((id: string) => {
+  const handleDownloadMateri = useCallback(async (id: string) => {
     const mat = materis.find((m) => m.id === id);
-    triggerToast(`Memulai proses unduh berkas: ${mat?.title}`, 'success');
-    setMateris((prev) => prev.map((m) => m.id === id ? { ...m, downloadsCount: m.downloadsCount + 1 } : m));
-  }, [materis, setMateris, triggerToast]);
+    if (!mat) return;
+    const res = await MaterialsApi.download(id);
+    if (!res.success) {
+      triggerToast(res.error || 'Gagal mencatat unduhan', 'warn');
+      return;
+    }
+    setMateris((prev) => prev.map((m) => m.id === id ? (res.data as MateriBelajar) : m));
+    triggerToast(`Mengunduh: ${mat.title}`, 'success');
+    addSyncLog(`Downloaded material: ${mat.title}`);
+  }, [materis, setMateris, triggerToast, addSyncLog]);
 
   const handleCloseQuiz = useCallback(() => {
     setActiveQuizPlay(null);

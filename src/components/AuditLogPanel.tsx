@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '../lib/supabase';
 import { AuditLogsApi } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { Activity, Filter, RefreshCw, Radio, Wifi, WifiOff } from 'lucide-react';
 import type { AuditLog } from '../types';
+import { TableSkeleton } from './Skeleton';
 
 type ActionFilter = 'Semua' | 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'REGISTER' | 'CHECKIN' | 'EVALUATE' | 'SEED';
 type EntityFilter = 'Semua' | 'user' | 'student' | 'teacher' | 'transaction' | 'material' | 'notification' | 'schedule' | 'quiz' | 'attendance';
@@ -197,76 +199,24 @@ export default function AuditLogPanel() {
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex-1 overflow-hidden flex flex-col">
-        <div ref={scrollRef} className="overflow-x-auto overflow-y-auto flex-1 max-h-[65vh]">
-          <table className="w-full text-xs text-left border-collapse">
-            <thead className="bg-slate-900 text-white font-bold text-[9px] uppercase sticky top-0 z-10">
-              <tr>
-                <th className="p-2.5 border-b border-slate-700 w-36">Waktu</th>
-                <th className="p-2.5 border-b border-slate-700 w-20">Aksi</th>
-                <th className="p-2.5 border-b border-slate-700 w-20">Entitas</th>
-                <th className="p-2.5 border-b border-slate-700 w-28">User</th>
-                <th className="p-2.5 border-b border-slate-700">Detail</th>
-                <th className="p-2.5 border-b border-slate-700 w-24">ID Entitas</th>
-                <th className="p-2.5 border-b border-slate-700 w-20">IP</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-mono">
-              {loading && logs.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400 text-[11px]">
-                    <RefreshCw className="w-5 h-5 mx-auto mb-2 animate-spin text-slate-300" />
-                    Memuat data audit...
-                  </td>
-                </tr>
-              ) : displayedLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400 text-[11px]">
-                    <Activity className="w-8 h-8 mx-auto mb-1 text-slate-300" />
-                    Belum ada data audit log.
-                  </td>
-                </tr>
-              ) : displayedLogs.map((log, idx) => {
-                const isLive = idx < liveEntries.length;
-                return (
-                  <tr
-                    key={`${log.id}-${idx}`}
-                    className={`hover:bg-slate-50 transition-colors ${
-                      isLive ? 'bg-emerald-50/50 border-l-2 border-l-emerald-500' : ''
-                    }`}
-                  >
-                    <td className="p-2 text-[10px] text-slate-500 whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        {isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
-                        {formatTime(log.createdAt)}
-                      </div>
-                    </td>
-                    <td className="p-2">
-                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold border ${ACTION_COLORS[log.action] || 'bg-slate-100 text-slate-700'}`}>
-                        <span>{ACTION_ICONS[log.action] || '?'}</span>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="p-2 text-[10px] text-slate-600 font-semibold">{log.entity}</td>
-                    <td className="p-2 text-[10px] text-slate-600 max-w-[120px] truncate" title={log.user?.name || 'Sistem'}>
-                      {log.user ? (
-                        <span className="flex flex-col">
-                          <span className="font-bold text-slate-800">{log.user.name}</span>
-                          <span className="text-[8px] text-slate-400">{log.user.role}</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic">Sistem</span>
-                      )}
-                    </td>
-                    <td className="p-2 text-[10px] text-slate-600 max-w-[250px] truncate" title={log.details || ''}>
-                      {log.details || '-'}
-                    </td>
-                    <td className="p-2 text-[9px] text-slate-400 max-w-[120px] truncate">{log.entityId || '-'}</td>
-                    <td className="p-2 text-[9px] text-slate-400">{log.ip || '-'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div ref={scrollRef} className="overflow-x-auto overflow-y-auto flex-1 max-h-[65vh] relative">
+          {loading && logs.length === 0 ? (
+            <div className="p-6">
+              <TableSkeleton rows={8} cols={7} />
+            </div>
+          ) : displayedLogs.length === 0 ? (
+            <div className="p-6 text-center text-slate-400 text-[11px]">
+              <Activity className="w-8 h-8 mx-auto mb-1 text-slate-300" />
+              Belum ada data audit log.
+            </div>
+          ) : (
+            <VirtualizedAuditTable
+              logs={displayedLogs}
+              liveCount={liveEntries.length}
+              scrollRef={scrollRef}
+              formatTime={formatTime}
+            />
+          )}
         </div>
 
         {/* Pagination */}
@@ -316,5 +266,81 @@ export default function AuditLogPanel() {
         </div>
       </div>
     </div>
+  );
+}
+
+function VirtualizedAuditTable({
+  logs, liveCount, scrollRef, formatTime,
+}: {
+  logs: AuditLog[];
+  liveCount: number;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  formatTime: (iso: string) => string;
+}) {
+  const virtualizer = useVirtualizer({
+    count: logs.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 42,
+    overscan: 10,
+  });
+
+  return (
+    <table className="w-full text-xs text-left border-collapse">
+      <thead className="bg-slate-900 text-white font-bold text-[9px] uppercase sticky top-0 z-10">
+        <tr>
+          <th className="p-2.5 border-b border-slate-700 w-36">Waktu</th>
+          <th className="p-2.5 border-b border-slate-700 w-20">Aksi</th>
+          <th className="p-2.5 border-b border-slate-700 w-20">Entitas</th>
+          <th className="p-2.5 border-b border-slate-700 w-28">User</th>
+          <th className="p-2.5 border-b border-slate-700">Detail</th>
+          <th className="p-2.5 border-b border-slate-700 w-24">ID Entitas</th>
+          <th className="p-2.5 border-b border-slate-700 w-20">IP</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 font-mono">
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const log = logs[virtualItem.index];
+          const isLive = virtualItem.index < liveCount;
+          return (
+            <tr
+              key={`${log.id}-${virtualItem.index}`}
+              style={{ height: `${virtualItem.size}px`, transform: `translateY(${virtualItem.start}px)` }}
+              className={`hover:bg-slate-50 transition-colors absolute w-full ${
+                isLive ? 'bg-emerald-50/50 border-l-2 border-l-emerald-500' : ''
+              }`}
+            >
+              <td className="p-2 text-[10px] text-slate-500 whitespace-nowrap">
+                <div className="flex items-center gap-1">
+                  {isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                  {formatTime(log.createdAt)}
+                </div>
+              </td>
+              <td className="p-2">
+                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold border ${ACTION_COLORS[log.action] || 'bg-slate-100 text-slate-700'}`}>
+                  <span>{ACTION_ICONS[log.action] || '?'}</span>
+                  {log.action}
+                </span>
+              </td>
+              <td className="p-2 text-[10px] text-slate-600 font-semibold">{log.entity}</td>
+              <td className="p-2 text-[10px] text-slate-600 max-w-[120px] truncate" title={log.user?.name || 'Sistem'}>
+                {log.user ? (
+                  <span className="flex flex-col">
+                    <span className="font-bold text-slate-800">{log.user.name}</span>
+                    <span className="text-[8px] text-slate-400">{log.user.role}</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">Sistem</span>
+                )}
+              </td>
+              <td className="p-2 text-[10px] text-slate-600 max-w-[250px] truncate" title={log.details || ''}>
+                {log.details || '-'}
+              </td>
+              <td className="p-2 text-[9px] text-slate-400 max-w-[120px] truncate">{log.entityId || '-'}</td>
+              <td className="p-2 text-[9px] text-slate-400">{log.ip || '-'}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

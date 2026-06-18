@@ -135,7 +135,25 @@ Avoid reading unless task directly involves them:
 
 ---
 
-## Project
+## Agent Routing (OpenCode Manager)
+
+OpenCode bertindak sebagai **manager agent**. Berdasarkan deskripsi tugas, ia otomatis mendelegasikan ke sub-agent yang tepat:
+
+| Sub-Agent | Dipanggil Saat | Model (provider) |
+|-----------|----------------|------------------|
+| `explorer` | Cari file, search code, baca file | GPT 5.4 Nano (opencode) |
+| `backend` | API routes, Prisma, DB, migration, validation | Qwen3 → Groq → OpenRouter → Gemini (9router) |
+| `frontend` | React components, UI, styling, auth context | Qwen3 → Groq → OpenRouter → Gemini (9router) |
+| `tester` | Unit/E2E test, coverage, mocking | Claude 4.5 → Groq → OpenRouter → Gemini (9router) |
+| `security` | Auth audit, RBAC, XSS/SQLi, secrets scan | Claude 4.5 → Groq → OpenRouter → Gemini (9router) |
+
+**Sub-agent fallback:** 4-layer fallback via 9router combo: Kiro → Groq → OpenRouter → Gemini. Setiap provider auto-fallback ke provider berikutnya saat rate limit / error.
+
+**Free providers:** OpenCode (built-in, no auth) + Kiro AI (OAuth) + Groq (30 RPM) + OpenRouter (27+ free models, 200 req/day) + Gemini 2.5 Flash (1M ctx, free tier). Semua tanpa kartu kredit.
+
+**Override manual:** `/model` bisa ganti model kapan saja.
+
+---
 
 Full-stack tutoring management: React 19 SPA (frontend) + Express 5 + Prisma + PostgreSQL (backend). Docker-ready with GitHub Actions CI.
 

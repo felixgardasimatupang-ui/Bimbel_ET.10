@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Plus, X, FileText, Video, Layers, Lock } from 'lucide-react';
 import type { MateriBelajar, InteractiveQuiz } from '../types';
+import { sanitizeHTML } from '../utils/sanitize';
 
 interface ModulPanelProps {
   filteredMateris: MateriBelajar[];
@@ -200,7 +201,7 @@ export default function ModulPanel({
                 </div>
                 {activeQuizPlay.questions.map((q, qIndex) => (
                   <div key={q.id} className="space-y-1.5">
-                    <p className="font-semibold text-slate-800">{qIndex + 1}. {q.question}</p>
+                    <p className="font-semibold text-slate-800" dangerouslySetInnerHTML={{ __html: `${qIndex + 1}. ${sanitizeHTML(q.question)}` }} />
                     <div className="space-y-1">
                       {q.options.map((opt: string, optIndex: number) => (
                         <button id={`q_option_${q.id}_${optIndex}`} key={optIndex} type="button"
@@ -208,7 +209,7 @@ export default function ModulPanel({
                           className={`w-full text-left p-2 rounded border text-[11px] transition ${
                             quizAnswers[q.id] === optIndex ? 'bg-blue-600 text-white border-blue-700' : 'bg-white hover:bg-slate-100'
                           }`}>
-                          {opt}
+                          <span dangerouslySetInnerHTML={{ __html: sanitizeHTML(opt) }} />
                         </button>
                       ))}
                     </div>

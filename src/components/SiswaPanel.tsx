@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useOptimistic, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Search, Plus, X, QrCode, MapPin, UserCheck, Target
 } from 'lucide-react';
 import type { Siswa } from '../types';
 import AvatarWithFallback from './AvatarWithFallback';
 import { useSiswaPanel } from '../contexts/SiswaPanelContext';
+import { TableSkeleton } from './Skeleton';
 
 export default function SiswaPanel() {
   const {
@@ -14,6 +16,34 @@ export default function SiswaPanel() {
     qrSession, onRegenerateQr, gpsLoading, gpsLocation, onGpsQuery,
     onSimulateCheckin, onToggleSpp,
   } = useSiswaPanel();
+
+  const [optimisticSiswas, addOptimistic] = useOptimistic(
+    filteredSiswas as Siswa[],
+    (state, { type, id }: { type: 'toggleSpp' | 'checkin'; id: string }) => {
+      if (type === 'toggleSpp') {
+        return state.map((s) =>
+          s.id === id ? { ...s, sppStatus: s.sppStatus === 'LUNAS' ? 'BELUM_BAYAR' as const : 'LUNAS' as const } : s
+        );
+      }
+      if (type === 'checkin') {
+        return state.map((s) =>
+          s.id === id
+            ? { ...s, locationCheckedIn: true, checkInTime: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }
+            : s
+        );
+      }
+      return state;
+    },
+  );
+
+  const tableRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: optimisticSiswas.length,
+    getScrollElement: () => tableRef.current,
+    estimateSize: () => 48,
+    overscan: 10,
+  });
+
   return (
     <div id="panel_siswa" className="space-y-4 flex flex-col flex-1">
       <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
@@ -186,14 +216,14 @@ export default function SiswaPanel() {
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Simulasi Cepat Presensi</h4>
             <div className="grid grid-cols-2 gap-1.5">
               <select id="simulation_student_selector" className="text-xs border border-slate-200 bg-white p-1 rounded font-semibold"
-                onChange={(e) => { if (e.target.value) { onSimulateCheckin(e.target.value, 'QR_SCAN'); e.target.value = ''; } }}>
+                onChange={(e) => { if (e.target.value) { addOptimistic({ type: 'checkin', id: e.target.value }); onSimulateCheckin(e.target.value, 'QR_SCAN'); e.target.value = ''; } }}>
                 <option value="">-- Simulasi QR Scan --</option>
-                {(filteredSiswas as Siswa[]).map((s: Siswa) => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                {optimisticSiswas.map((s: Siswa) => (<option key={s.id} value={s.id}>{s.name}</option>))}
               </select>
               <select id="simulation_student_gps_selector" className="text-xs border border-slate-200 bg-white p-1 rounded font-semibold"
-                onChange={(e) => { if (e.target.value) { onSimulateCheckin(e.target.value, 'LOKASI'); e.target.value = ''; } }}>
+                onChange={(e) => { if (e.target.value) { addOptimistic({ type: 'checkin', id: e.target.value }); onSimulateCheckin(e.target.value, 'LOKASI'); e.target.value = ''; } }}>
                 <option value="">-- Simulasi Geolocation --</option>
-                {(filteredSiswas as Siswa[]).map((s: Siswa) => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                {optimisticSiswas.map((s: Siswa) => (<option key={s.id} value={s.id}>{s.name}</option>))}
               </select>
             </div>
           </div>
@@ -202,65 +232,79 @@ export default function SiswaPanel() {
         <div className="col-span-12 lg:col-span-7 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
           <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block">Siswa & Laporan Kehadiran Berdasar QR-GPS</span>
-            <span className="text-[10px] text-slate-500 font-mono">Filter Hasil: {filteredSiswas.length}</span>
+            <span className="text-[10px] text-slate-500 font-mono">Filter Hasil: {optimisticSiswas.length}</span>
           </div>
 
-          <div className="flex-1 overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-slate-50 text-[9px] uppercase font-bold text-slate-500 border-b border-slate-200 sticky top-0">
-                <tr>
-                  <th className="p-3">ID SISWA</th>
-                  <th className="p-3">NAMA</th>
-                  <th className="p-3">PRESENSI HARI INI</th>
-                  <th className="p-3">KEHADIRAN BULANAN</th>
-                  <th className="p-3">NILAI DIAGNOSTIK</th>
-                  <th className="p-3 text-right">INVOICE SPP</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredSiswas.length === 0 ? (
-                  <tr><td colSpan={6} className="p-3 text-center text-slate-400 italic">Tidak ada siswa cocok filter.</td></tr>
-                ) : filteredSiswas.map((student: Siswa) => (
-                  <tr key={student.id} onClick={() => setSelectedSiswaId(student.id)}
-                    className={`hover:bg-slate-50/80 cursor-pointer transition ${selectedSiswaId === student.id ? 'bg-blue-50/40 border-l-2 border-blue-600' : ''}`}>
-                    <td className="p-3 font-mono font-bold text-slate-500">{student.id}</td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <AvatarWithFallback src={student.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} alt={student.name} className="w-6 h-6 rounded-full object-cover shadow-sm shrink-0" />
-                        <div>
-                          <span className="font-semibold text-slate-800 block text-[11px]">{student.name}</span>
-                          <span className="text-[9px] text-slate-400 block">{student.classLevel}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      {student.locationCheckedIn ? (
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.2 rounded font-mono block w-fit">HADIR ({student.checkInTime || '07:44'})</span>
-                      ) : (
-                        <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.2 rounded font-mono block w-fit">TERLAMBAT / ABSEN</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold">{student.attendanceRate}%</span>
-                        <div className="w-12 bg-slate-100 h-1.5 rounded-full overflow-hidden" role="progressbar" aria-valuenow={student.attendanceRate} aria-valuemin={0} aria-valuemax={100}>
-                          <div className="bg-purple-500 h-full" style={{ width: `${student.attendanceRate}%` }}></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <span className={`font-mono font-extrabold ${student.performanceScore >= 85 ? 'text-emerald-600' : 'text-amber-600'}`}>{student.performanceScore}</span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <button id={`spp_badge_${student.id}`} onClick={(e) => { e.stopPropagation(); onToggleSpp(student.id); }}
-                        className={`text-[9px] font-extrabold px-2 py-0.5 rounded transition ${student.sppStatus === 'LUNAS' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}>
-                        {student.sppStatus === 'LUNAS' ? 'LUNAS' : '⚠️ BELUM BAYAR'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div ref={tableRef} className="flex-1 overflow-y-auto" style={{ maxHeight: '65vh' }}>
+            {optimisticSiswas.length === 0 ? (
+              <TableSkeleton rows={5} cols={6} />
+            ) : (
+              <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="bg-slate-50 text-[9px] uppercase font-bold text-slate-500 border-b border-slate-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="p-3" style={{ width: '10%' }}>ID SISWA</th>
+                      <th className="p-3" style={{ width: '22%' }}>NAMA</th>
+                      <th className="p-3" style={{ width: '18%' }}>PRESENSI HARI INI</th>
+                      <th className="p-3" style={{ width: '16%' }}>KEHADIRAN</th>
+                      <th className="p-3" style={{ width: '14%' }}>NILAI</th>
+                      <th className="p-3 text-right" style={{ width: '20%' }}>INVOICE SPP</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {virtualizer.getVirtualItems().map((virtualItem) => {
+                      const student = optimisticSiswas[virtualItem.index] as Siswa;
+                      return (
+                        <tr
+                          key={student.id}
+                          onClick={() => setSelectedSiswaId(student.id)}
+                          style={{ height: `${virtualItem.size}px`, transform: `translateY(${virtualItem.start}px)` }}
+                          className={`hover:bg-slate-50/80 cursor-pointer transition absolute w-full ${selectedSiswaId === student.id ? 'bg-blue-50/40 border-l-2 border-blue-600' : ''}`}
+                        >
+                          <td className="p-3 font-mono font-bold text-slate-500">{student.id}</td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <AvatarWithFallback src={student.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} alt={student.name} className="w-6 h-6 rounded-full object-cover shadow-sm shrink-0" />
+                              <div>
+                                <span className="font-semibold text-slate-800 block text-[11px]">{student.name}</span>
+                                <span className="text-[9px] text-slate-400 block">{student.classLevel}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            {student.locationCheckedIn ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.2 rounded font-mono block w-fit">HADIR ({student.checkInTime || '07:44'})</span>
+                            ) : (
+                              <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.2 rounded font-mono block w-fit">TERLAMBAT / ABSEN</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold">{student.attendanceRate}%</span>
+                              <div className="w-12 bg-slate-100 h-1.5 rounded-full overflow-hidden" role="progressbar" aria-valuenow={student.attendanceRate} aria-valuemin={0} aria-valuemax={100}>
+                                <div className="bg-purple-500 h-full" style={{ width: `${student.attendanceRate}%` }}></div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <span className={`font-mono font-extrabold ${student.performanceScore >= 85 ? 'text-emerald-600' : 'text-amber-600'}`}>{student.performanceScore}</span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              id={`spp_badge_${student.id}`}
+                              onClick={(e) => { e.stopPropagation(); addOptimistic({ type: 'toggleSpp', id: student.id }); onToggleSpp(student.id); }}
+                              className={`text-[9px] font-extrabold px-2 py-0.5 rounded transition ${student.sppStatus === 'LUNAS' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
+                            >
+                              {student.sppStatus === 'LUNAS' ? 'LUNAS' : 'BELUM BAYAR'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

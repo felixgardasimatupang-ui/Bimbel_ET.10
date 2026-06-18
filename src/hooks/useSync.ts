@@ -1,20 +1,14 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+
+import { apiRequest } from '../api/client';
 
 export function useSync(triggerToast: (message: string, type: 'success' | 'warn' | 'info') => void) {
   const [offlineMode, setOfflineMode] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncLogs, setSyncLogs] = useState<string[]>([
-    'Sistem diinisialisasi pada server node JKT-NODE-01',
-    'Sinkronisasi database awan berhasil. Status: Konsisten',
+    'Sistem terhubung ke server.',
   ]);
-  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (syncTimer.current) clearTimeout(syncTimer.current);
-    };
-  }, []);
 
   const addSyncLog = useCallback((action: string) => {
     const time = new Date().toLocaleTimeString('id-ID');
@@ -25,25 +19,32 @@ export function useSync(triggerToast: (message: string, type: 'success' | 'warn'
     if (offlineMode) setPendingSyncCount((prev) => prev + 1);
   }, [offlineMode]);
 
-  const handleSyncData = useCallback(() => {
+  const handleSyncData = useCallback(async () => {
     setIsSyncing(true);
-    triggerToast('Menyambungkan terminal dan mensinkronisasikan revisi offline...', 'info');
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => {
+    triggerToast('Menyinkronkan data ke server...', 'info');
+    try {
+      const res = await apiRequest('/students', { method: 'GET' });
+      if (res.success) {
+        setPendingSyncCount(0);
+        triggerToast('Sinkronisasi berhasil! Data diperbarui dari server.', 'success');
+        addSyncLog('Data berhasil disinkronkan dengan server.');
+      } else {
+        triggerToast('Gagal sinkronisasi: ' + (res.error || 'unknown'), 'warn');
+      }
+    } catch {
+      triggerToast('Gagal terhubung ke server untuk sinkronisasi.', 'warn');
+    } finally {
       setIsSyncing(false);
-      setPendingSyncCount(0);
-      triggerToast('Sinkronisasi real-time berhasil! Semua instansi data wali murid & server terpadu.', 'success');
-      addSyncLog('Penyelarasan basis data multi-perangkat dikonsolidasi dengan server JKT-MAIN-NODE.');
-    }, 1500);
+    }
   }, [triggerToast, addSyncLog]);
 
   const toggleOfflineMode = useCallback(() => {
     setOfflineMode((prev) => {
       if (!prev) {
-        triggerToast('Beralih ke MODE OFFLINE. Aktivitas terekam dalam antrean sinkronisasi lokal.', 'warn');
-        addSyncLog('Offline standby protocols activated. Using ServiceWorker mock queue.');
+        triggerToast('Mode OFFLINE aktif. Perubahan akan diantrekan.', 'warn');
+        addSyncLog('Offline mode activated.');
       } else {
-        triggerToast('Koneksi Internet pulih! Menyinkronkan tumpukan rekam data siswa...', 'success');
+        triggerToast('Mode ONLINE. Menyinkronkan data...', 'success');
         handleSyncData();
       }
       return !prev;
@@ -59,6 +60,5 @@ export function useSync(triggerToast: (message: string, type: 'success' | 'warn'
     trackOfflineChange,
     handleSyncData,
     toggleOfflineMode,
-    syncTimer,
   };
 }
