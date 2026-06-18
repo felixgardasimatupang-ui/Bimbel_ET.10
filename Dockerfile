@@ -23,7 +23,7 @@ COPY . .
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM nginx:1.27-alpine AS runner
+FROM nginx:1.31-alpine AS runner
 
 RUN apk add --no-cache wget && \
     rm -f /etc/nginx/conf.d/default.conf
