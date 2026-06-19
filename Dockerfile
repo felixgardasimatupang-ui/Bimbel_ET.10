@@ -15,6 +15,7 @@ RUN rm -f /etc/nginx/conf.d/default.conf /etc/nginx/http.d/default.conf
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
+RUN sed -i 's/ crossorigin//g' /usr/share/nginx/html/index.html
 
 EXPOSE 3000
 
