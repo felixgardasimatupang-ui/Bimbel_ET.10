@@ -96,5 +96,13 @@ if [ $ready -eq 0 ]; then
   log "ERROR: API failed all ${MAX_RETRIES} attempts. Starting nginx anyway..."
 fi
 
-log "Starting nginx..."
-nginx -g "daemon off;"
+if command -v nginx >/dev/null 2>&1; then
+  log "Starting nginx..."
+  nginx -g "daemon off;"
+else
+  log "nginx not found — serving API directly on PORT=${PORT:-3000}"
+  kill $SERVER_PID 2>/dev/null || true
+  wait $SERVER_PID 2>/dev/null || true
+  export API_PORT="${PORT:-3000}"
+  exec node dist/server.js
+fi
