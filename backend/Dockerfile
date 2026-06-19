@@ -22,6 +22,7 @@ COPY --chown=appuser:appgroup --from=builder /app/dist ./dist
 COPY --chown=appuser:appgroup --from=builder /app/src ./src
 COPY --chown=appuser:appgroup --from=builder /app/prisma ./prisma
 COPY --chown=appuser:appgroup --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --chown=appuser:appgroup dist-public /usr/share/nginx/html
 COPY --chown=appuser:appgroup docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN apk add --no-cache wget && \
