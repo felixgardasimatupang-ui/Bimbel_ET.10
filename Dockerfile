@@ -20,6 +20,7 @@ RUN npm run build
 FROM node:22-alpine AS runner
 
 RUN apk add --no-cache nginx wget && \
+    mkdir -p /etc/nginx/http.d && \
     rm -f /etc/nginx/conf.d/default.conf /etc/nginx/http.d/default.conf
 
 WORKDIR /app
