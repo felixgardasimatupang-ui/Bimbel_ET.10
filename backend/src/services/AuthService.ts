@@ -9,7 +9,7 @@ import { AppError } from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 import { StandaloneAuthService } from './StandaloneAuthService.js';
 
-const JWT_SECRET = process.env.JWT_ACCESS_SECRET!;
+const getJwtSecret = () => process.env.JWT_ACCESS_SECRET || 'ephemeral-' + crypto.randomUUID();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_DEFAULT_ROLE: UserRole = (Object.values(UserRole) as string[]).includes(process.env.GOOGLE_DEFAULT_ROLE || '')
   ? (process.env.GOOGLE_DEFAULT_ROLE as UserRole)
@@ -19,7 +19,7 @@ const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : nul
 function signAccessToken(user: { id: string; email: string; role: string; provider?: string | null }) {
   return jwt.sign(
     { userId: user.id, email: user.email, role: user.role, provider: user.provider || null },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '1h' },
   );
 }

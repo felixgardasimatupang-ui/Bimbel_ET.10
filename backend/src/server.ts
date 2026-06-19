@@ -9,9 +9,9 @@ async function main() {
     const env = validateEnv(process.env as Record<string, string>);
     const PORT = env.API_PORT;
 
-    if (env.NODE_ENV !== 'production' && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET)) {
+    if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
       const crypto = await import('crypto');
-      logger.warn('Missing JWT secrets — generating ephemeral dev secrets.');
+      logger.warn('Missing JWT secrets — generating ephemeral secrets (sessions lost on restart).');
       process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || crypto.randomUUID();
       process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || crypto.randomUUID();
     }

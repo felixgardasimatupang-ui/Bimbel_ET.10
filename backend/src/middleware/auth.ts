@@ -1,10 +1,11 @@
+import crypto from 'crypto';
 import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { prisma } from '../lib/prisma.js';
 import type { AuthRequest, JwtPayload } from '../types/index.js';
 
-const JWT_SECRET = process.env.JWT_ACCESS_SECRET!;
+const getJwtSecret = () => process.env.JWT_ACCESS_SECRET || 'ephemeral-' + crypto.randomUUID();
 
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
@@ -45,7 +46,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
   // Try 2: Verify as custom JWT (Google OAuth users)
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
     const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
     if (dbUser && dbUser.active) {

@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from '../utils/crypto.js';
 import { createAuditLog } from '../utils/audit.js';
 import { AuditAction, AuditEntity, UserRole } from '@prisma/client';
 
-const JWT_SECRET = process.env.JWT_ACCESS_SECRET!;
+const getJwtSecret = () => process.env.JWT_ACCESS_SECRET || 'ephemeral-' + crypto.randomUUID();
 
 export class StandaloneAuthService {
   async login(email: string, password: string) {
@@ -20,7 +20,7 @@ export class StandaloneAuthService {
 
     const accessToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role, provider: 'standalone' },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '1h' },
     );
 
@@ -61,7 +61,7 @@ export class StandaloneAuthService {
 
     const accessToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role, provider: 'standalone' },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '1h' },
     );
 
