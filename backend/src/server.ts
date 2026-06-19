@@ -4,11 +4,11 @@ import { initSentry } from './lib/sentry.js';
 import { validateEnv } from './schemas/env.js';
 import logger from './utils/logger.js';
 
-const PORT = parseInt(process.env.API_PORT || '3001', 10);
-
 async function main() {
   try {
     const env = validateEnv(process.env as Record<string, string>);
+    const PORT = env.API_PORT;
+
     if (env.NODE_ENV !== 'production' && (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET)) {
       const crypto = await import('crypto');
       logger.warn('Missing JWT secrets — generating ephemeral dev secrets.');
