@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { prisma } from './lib/prisma.js';
 import authRoutes from './routes/auth.js';
@@ -152,6 +153,17 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/audit-logs', auditRoutes);
+
+// Serve frontend static files (built SPA from nginx html dir)
+const frontendPath = '/usr/share/nginx/html';
+app.use(express.static(frontendPath));
+
+// SPA fallback — serve index.html for non-API routes
+const indexPath = path.join(frontendPath, 'index.html');
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || res.headersSent) return next();
+  res.sendFile(indexPath, (err) => { if (err) next(); });
+});
 
 // 404 — JSON response for unknown API routes
 app.use((req, res, next) => {
