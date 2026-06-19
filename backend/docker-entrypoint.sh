@@ -19,7 +19,7 @@ else
 fi
 
 if [ "$USE_NGINX" = true ]; then
-  NGINX_CONF="/etc/nginx/http.d/default.conf"
+  NGINX_CONF="/etc/nginx/conf.d/default.conf"
 
   if [ ! -f "$NGINX_CONF" ]; then
     log "nginx config not found, creating fallback..."
