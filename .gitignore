@@ -11,3 +11,4 @@ coverage/
 # Agent skills (development tooling, not for production)
 skills/
 Agent-Skill-Kit/
+.vercel
