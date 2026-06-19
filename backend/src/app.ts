@@ -160,7 +160,7 @@ app.use(express.static(frontendPath));
 
 // SPA fallback — serve index.html for non-API routes
 const indexPath = path.join(frontendPath, 'index.html');
-app.get('*', (req, res, next) => {
+app.get('/*', (req, res, next) => {
   if (req.path.startsWith('/api/') || res.headersSent) return next();
   res.sendFile(indexPath, (err) => { if (err) next(); });
 });
