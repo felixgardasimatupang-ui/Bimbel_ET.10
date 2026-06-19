@@ -1,0 +1,43 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/minimax-m2.5-free",
+  "small_model": "opencode/minimax-m2.5-free",
+  "default_agent": "build",
+  "provider": {
+    "opencode": {
+      "models": {
+        "gpt-5.4-nano": {},
+        "nemotron-3-ultra-free": {},
+        "deepseek-v4-flash-free": {},
+        "minimax-m2.5-free": {}
+      }
+    }
+  },
+  "agent": {
+    "backend": {
+      "model": "opencode/deepseek-v4-flash-free",
+      "mode": "subagent",
+      "description": "Express routes, Prisma schema, migrations, API endpoints, DB queries, Zod validation, RBAC middleware"
+    },
+    "frontend": {
+      "model": "opencode/minimax-m2.5-free",
+      "mode": "subagent",
+      "description": "React components, TypeScript types, Tailwind CSS, API client, AuthContext, form validation"
+    },
+    "tester": {
+      "model": "opencode/deepseek-v4-flash-free",
+      "mode": "subagent",
+      "description": "Vitest unit tests, Playwright E2E, test coverage, mocking, test-driven development"
+    },
+    "security": {
+      "model": "opencode/nemotron-3-ultra-free",
+      "mode": "subagent",
+      "description": "Auth audit, RBAC review, input validation, XSS/SQL injection prevention, secret scanning, dependency audit"
+    },
+    "explorer": {
+      "model": "opencode/minimax-m2.5-free",
+      "mode": "subagent",
+      "description": "Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns, search code for keywords, or answer questions about the codebase"
+    }
+  }
+}

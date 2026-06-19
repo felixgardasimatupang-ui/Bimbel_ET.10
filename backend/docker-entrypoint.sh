@@ -15,7 +15,12 @@ elif [ "$(id -u)" -eq 0 ] && apk add --no-cache nginx wget >/dev/null 2>&1; then
   log "nginx installed at runtime"
   USE_NGINX=true
 else
-  log "nginx not available — running API directly"
+  log "nginx not available — API listens directly on PORT=${PORT:-3000}"
+fi
+
+# Without nginx, API must listen on Railway's PORT directly
+if [ "$USE_NGINX" = false ] && [ -n "$PORT" ]; then
+  API_PORT="$PORT"
 fi
 
 if [ "$USE_NGINX" = true ]; then
@@ -104,9 +109,6 @@ if [ "$USE_NGINX" = true ]; then
   log "Starting nginx..."
   nginx -g "daemon off;"
 else
-  log "Serving API directly on PORT=${PORT:-3000}..."
-  kill $SERVER_PID 2>/dev/null || true
-  wait $SERVER_PID 2>/dev/null || true
-  API_PORT="${PORT:-3000}"
-  exec node dist/server.js
+  log "API already running on port ${API_PORT}, waiting..."
+  wait $SERVER_PID
 fi

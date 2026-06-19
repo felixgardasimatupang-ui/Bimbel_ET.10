@@ -141,11 +141,11 @@ OpenCode bertindak sebagai **manager agent**. Berdasarkan deskripsi tugas, ia ot
 
 | Sub-Agent | Dipanggil Saat | Model (provider) |
 |-----------|----------------|------------------|
-| `explorer` | Cari file, search code, baca file | GPT 5.4 Nano (opencode) |
-| `backend` | API routes, Prisma, DB, migration, validation | Qwen3 → Groq → OpenRouter → Gemini (9router) |
-| `frontend` | React components, UI, styling, auth context | Qwen3 → Groq → OpenRouter → Gemini (9router) |
-| `tester` | Unit/E2E test, coverage, mocking | Claude 4.5 → Groq → OpenRouter → Gemini (9router) |
-| `security` | Auth audit, RBAC, XSS/SQLi, secrets scan | Claude 4.5 → Groq → OpenRouter → Gemini (9router) |
+| `explorer` | Cari file, search code, baca file | MiniMax M2.5 Free (opencode) |
+| `backend` | API routes, Prisma, DB, migration, validation | DeepSeek V4 Flash Free (opencode) |
+| `frontend` | React components, UI, styling, auth context | MiniMax M2.5 Free (opencode) |
+| `tester` | Unit/E2E test, coverage, mocking | DeepSeek V4 Flash Free (opencode) |
+| `security` | Auth audit, RBAC, XSS/SQLi, secrets scan | Nemotron 3 Ultra Free (opencode) |
 
 **Sub-agent fallback:** 4-layer fallback via 9router combo: Kiro → Groq → OpenRouter → Gemini. Setiap provider auto-fallback ke provider berikutnya saat rate limit / error.
 
