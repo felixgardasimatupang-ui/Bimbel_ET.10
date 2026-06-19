@@ -15,4 +15,4 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD sh -c "sed -i 's|__BACKEND_URL__|${BACKEND_URL:-http://localhost:3001}|g' /etc/nginx/http.d/default.conf && exec nginx -g 'daemon off;'"
