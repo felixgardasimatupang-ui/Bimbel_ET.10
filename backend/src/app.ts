@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import path from 'path';
+import fs from 'fs';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { prisma } from './lib/prisma.js';
 import authRoutes from './routes/auth.js';
@@ -154,13 +155,16 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/audit-logs', auditRoutes);
 
-// Serve frontend static files (built SPA from nginx html dir)
-const frontendPath = '/usr/share/nginx/html';
+// Serve frontend static files (built SPA)
+const prodPath = '/usr/share/nginx/html';
+const devDistPath = path.resolve('../dist');
+const frontendPath = fs.existsSync(devDistPath) ? devDistPath : prodPath;
+if (frontendPath !== prodPath) logger.info(`[FRONTEND] Serving from dev dist: ${frontendPath}`);
 app.use(express.static(frontendPath));
 
 // SPA fallback — serve index.html for non-API routes
 const indexPath = path.join(frontendPath, 'index.html');
-app.get('/*', (req, res, next) => {
+app.get('/{*path}', (req, res, next) => {
   if (req.path.startsWith('/api/') || res.headersSent) return next();
   res.sendFile(indexPath, (err) => { if (err) next(); });
 });

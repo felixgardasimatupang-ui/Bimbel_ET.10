@@ -39,11 +39,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const rawUrl = import.meta.env.VITE_API_URL || '';
       const apiBase = rawUrl ? rawUrl.replace(/\/+$/, '').replace(/\/api$/, '') + '/api' : '/api';
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(`${apiBase}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.data.accessToken) {
