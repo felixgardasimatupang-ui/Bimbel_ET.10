@@ -4,10 +4,11 @@ import {
   CartesianGrid, Tooltip, Area
 } from 'recharts';
 import {
-  Sparkles, QrCode, MapPin, UserCheck
+  Sparkles, QrCode, MapPin, UserCheck, Bell
 } from 'lucide-react';
 import type { Siswa, Notifikasi } from '../types';
 import AvatarWithFallback from './AvatarWithFallback';
+import EmptyState from './ui/EmptyState';
 
 interface RingkasanPanelProps {
   siswas: Siswa[];
@@ -30,8 +31,8 @@ export default function RingkasanPanel({
 
   return (
     <div id="panel_ringkasan" className="space-y-4 flex flex-col flex-1">
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-8 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col">
+      <div className="grid grid-cols-12 gap-4 animate-fadeIn">
+        <div className="col-span-12 lg:col-span-8 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">Visualisasi Analitik Komparatif Real-Time</h3>
@@ -63,7 +64,7 @@ export default function RingkasanPanel({
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+        <div className="col-span-12 lg:col-span-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center justify-between">
               <span>Log Trigger Push Notifikasi</span>
@@ -72,11 +73,10 @@ export default function RingkasanPanel({
 
             <div className="space-y-2 overflow-y-auto max-h-52 pr-1">
               {notifs.length === 0 ? (
-                <p className="text-[10px] text-slate-400 italic">Belum ada notifikasi.</p>
+                <EmptyState icon={<Bell className="w-6 h-6" />} title="Belum ada notifikasi" description="Notifikasi SPP dan pengingat ujian akan muncul di sini." />
               ) : notifs.map((n: Notifikasi) => (
-                <div
-                  key={n.id}
-                  className={`p-2 rounded border text-[11px] transition-colors ${
+                  <div key={n.id}
+                  className={`p-2 rounded-lg border text-[11px] transition-all duration-200 hover:-translate-x-0.5 ${
                     n.type === 'SPP_INFO' ? 'bg-amber-50/60 border-amber-100 text-slate-800' :
                     n.type === 'UJIAN_INFO' ? 'bg-red-50/60 border-red-100 text-slate-800' :
                     'bg-blue-50/60 border-blue-100 text-slate-800'
@@ -110,7 +110,7 @@ export default function RingkasanPanel({
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2 mb-3">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
@@ -135,7 +135,7 @@ export default function RingkasanPanel({
 
         {selectedSiswaObj ? (
           <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-12 md:col-span-4 bg-slate-50 rounded-lg p-3 border border-slate-100">
+            <div className="col-span-12 md:col-span-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700 hover:shadow-sm transition-all duration-200">
               <div className="flex items-center gap-3 mb-3">
                 <AvatarWithFallback
                   src={selectedSiswaObj.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"}
@@ -180,8 +180,8 @@ export default function RingkasanPanel({
               </div>
             </div>
 
-            <div className="col-span-12 md:col-span-4 bg-slate-50 rounded-lg p-3 border border-slate-100">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Evaluasi Penilaian Mata Pelajaran Akademik</h4>
+            <div className="col-span-12 md:col-span-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700 hover:shadow-sm transition-all duration-200">
+              <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Evaluasi Penilaian Mata Pelajaran Akademik</h4>
               <div className="space-y-2">
                 {selectedSiswaObj.subjectsScore.map((sub: { name: string; score: number }, idx: number) => (
                   <div key={idx} className="bg-white p-2 rounded border border-slate-100">
@@ -204,7 +204,7 @@ export default function RingkasanPanel({
               </div>
             </div>
 
-            <div className="col-span-12 md:col-span-4 bg-slate-50 rounded-lg p-3 border border-slate-100 flex flex-col justify-between">
+            <div className="col-span-12 md:col-span-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700 hover:shadow-sm transition-all duration-200 flex flex-col justify-between">
               <div>
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Integrasi GPS & Scan Attendance Terpaut</h4>
                 <div className="space-y-1.5 text-[11px] text-slate-600">
@@ -254,7 +254,7 @@ export default function RingkasanPanel({
             </div>
           </div>
         ) : (
-          <p className="text-[10px] text-slate-400 italic">Tidak ada data siswa.</p>
+          <EmptyState title="Tidak ada data siswa" description="Daftarkan siswa baru di panel Siswa & QR Presensi." />
         )}
       </div>
     </div>

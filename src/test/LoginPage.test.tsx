@@ -7,6 +7,7 @@ import { getGoogleClientId } from '../config';
 const API_BASE = 'http://localhost:3001/api';
 
 vi.mock('../config', () => ({
+  getApiBase: vi.fn(() => 'http://localhost:3001/api'),
   getGoogleClientId: vi.fn(() => ''),
 }));
 

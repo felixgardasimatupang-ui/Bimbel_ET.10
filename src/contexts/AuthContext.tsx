@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { setAccessToken, clearTokens, getMe, loginApi, googleLoginApi, logoutApi } from '../api/client';
+import { getApiBase } from '../config';
 import type { UserRole } from '../types';
 
 interface AuthUser {

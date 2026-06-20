@@ -14,6 +14,7 @@ import materialRoutes from './routes/materials.js';
 import notificationRoutes from './routes/notifications.js';
 import scheduleRoutes from './routes/schedules.js';
 import auditRoutes from './routes/audit.js';
+import attendanceRoutes from './routes/attendance.js';
 import { sentryErrorHandler } from './middleware/sentry.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import logger from './utils/logger.js';
@@ -154,6 +155,7 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 // Serve frontend static files (built SPA)
 const prodPath = '/usr/share/nginx/html';

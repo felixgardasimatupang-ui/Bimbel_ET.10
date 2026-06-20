@@ -19,10 +19,12 @@ interface SiswaPanelContextValue {
   formDataSiswa: FormDataSiswa;
   setFormDataSiswa: React.Dispatch<React.SetStateAction<FormDataSiswa>>;
   onAddSiswa: (e: React.FormEvent) => void;
-  qrSession: { sessionId: string; courseName: string; code: string; generatedAt: string };
+  qrSession: { sessionId: string; courseName: string; code: string; generatedAt: string; qrImage: string; validUntil: string; hqLatitude: number; hqLongitude: number; maxDistance: number };
   onRegenerateQr: () => void;
   gpsLoading: boolean;
-  gpsLocation: { lat: number; lon: number } | null;
+  gpsLocation: { lat: number; lon: number; accuracy: number; address?: string; source: string } | null;
+  gpsAccuracyLabel: string;
+  gpsAccuracyColor: string;
   onGpsQuery: () => void;
   onSimulateCheckin: (siswaId: string, method: 'QR_SCAN' | 'LOKASI') => void;
   onToggleSpp: (siswaId: string) => void;

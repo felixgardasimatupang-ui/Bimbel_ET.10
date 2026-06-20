@@ -20,7 +20,7 @@ describe('Toast', () => {
 
   it('has correct background for success type', () => {
     const { container } = render(<Toast message="Test" type="success" />);
-    expect(container.firstChild).toHaveClass('bg-emerald-500');
+    expect(container.firstChild).toHaveClass('bg-emerald-600');
   });
 
   it('has correct background for warning type', () => {

@@ -1,8 +1,9 @@
 import {
   ShieldCheck, Cpu, RefreshCw, Users, Calendar, DollarSign,
-  BookOpen, Wifi, WifiOff, Lock, Award, LogOut, UserCheck, Activity
+  BookOpen, Wifi, WifiOff, Lock, Award, LogOut, UserCheck, Activity, Moon, Sun
 } from 'lucide-react';
 import type { UserRole } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -26,6 +27,8 @@ export default function Sidebar({
   siswaCount, materiCount, quizCount, userName, onLogout
 }: SidebarProps) {
 
+  const { darkMode, toggleDarkMode } = useTheme();
+
   const handleNavKeyDown = (e: React.KeyboardEvent, tab: 'ringkasan' | 'siswa' | 'pengajar' | 'spp' | 'modul' | 'hak_akses' | 'audit') => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -40,10 +43,10 @@ export default function Sidebar({
       onKeyDown={(e) => handleNavKeyDown(e, tab)}
       role="tab"
       aria-selected={activeTab === tab}
-      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] font-medium transition-colors ${
+      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] font-medium transition-all duration-150 ${
         activeTab === tab
           ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-600 font-bold'
-          : 'hover:bg-slate-800 text-slate-300'
+          : 'hover:bg-slate-800 text-slate-300 hover:pl-3'
       }`}
     >
       <div className="flex items-center gap-2">
@@ -147,6 +150,21 @@ export default function Sidebar({
           </div>
           <span className={`text-[9px] ${offlineMode ? 'text-amber-400' : 'text-emerald-400'}`}>
             {offlineMode ? 'STANDBY' : 'AKTIF'}
+          </span>
+        </button>
+
+        <button
+          id="nav_darkmode"
+          onClick={toggleDarkMode}
+          aria-label={darkMode ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
+          className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] font-medium transition-colors hover:bg-slate-800 text-slate-300"
+        >
+          <div className="flex items-center gap-2">
+            {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-400" />}
+            <span>Mode Gelap</span>
+          </div>
+          <span className={`text-[9px] ${darkMode ? 'text-amber-400' : 'text-slate-400'}`}>
+            {darkMode ? 'AKTIF' : 'MATI'}
           </span>
         </button>
       </nav>

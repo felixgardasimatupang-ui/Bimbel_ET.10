@@ -1,4 +1,4 @@
-import { DollarSign, Bell, Download, RefreshCw } from 'lucide-react';
+import { DollarSign, Bell, Download, RefreshCw, Menu } from 'lucide-react';
 
 interface HeaderProps {
   offlineMode: boolean;
@@ -7,14 +7,20 @@ interface HeaderProps {
   onSPPReminder: () => void;
   onExamReminder: () => void;
   onExportCSV: () => void;
+  onToggleSidebar?: () => void;
 }
 
 export default function Header({
-  offlineMode, pendingSyncCount, onSync, onSPPReminder, onExamReminder, onExportCSV
+  offlineMode, pendingSyncCount, onSync, onSPPReminder, onExamReminder, onExportCSV, onToggleSidebar
 }: HeaderProps) {
   return (
-    <header id="header_pane" className="h-12 bg-white border-b border-slate-200 px-4 flex items-center justify-between shrink-0">
-      <div className="flex items-center gap-3">
+    <header id="header_pane" className="h-12 bg-white border-b border-slate-200 px-2 sm:px-4 flex items-center justify-between shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {onToggleSidebar && (
+          <button onClick={onToggleSidebar} aria-label="Toggle sidebar" className="md:hidden p-1.5 hover:bg-slate-100 rounded text-slate-600">
+            <Menu className="w-4 h-4" />
+          </button>
+        )}
         <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-[11px] font-medium">
           <span className={`w-2 h-2 rounded-full ${offlineMode ? 'bg-red-400 animate-pulse' : 'bg-emerald-500'}`}></span>
           <span className="text-slate-600 font-semibold uppercase">

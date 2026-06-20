@@ -1,12 +1,15 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect, type ReactNode, type FormEvent } from 'react';
 import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule, UserRole, InteractiveQuiz } from '../types';
+import type { GpsLocation } from '../utils/gps';
+import { AttendanceApi } from '../api/client';
 import {
   INITIAL_SISWA, INITIAL_TEACHERS, INITIAL_TRANSACTIONS,
   INITIAL_SCHEDULES, INITIAL_MATERI,
   INITIAL_QUIZZES, INITIAL_NOTIFIKASI,
 } from '../data/mockData';
 import { usePersistedState } from '../hooks/usePersistedState';
-import { validateEmail, sanitizeCSV, GPS_DEFAULT, calculateQuizScore } from '../utils/validation';
+import { createId, validateEmail, sanitizeCSV, calculateQuizScore } from '../utils/validation';
+import { GPS_DEFAULT, getAccurateLocation, accuracyLabel } from '../utils/gps';
 import { useToast } from '../hooks/useToast';
 import { useSync } from '../hooks/useSync';
 import { useAuth } from './AuthContext';
@@ -24,6 +27,11 @@ interface FormDataMateri {
 
 interface QrSession {
   sessionId: string; courseName: string; code: string; generatedAt: string;
+  qrImage: string;
+  validUntil: string;
+  hqLatitude: number;
+  hqLongitude: number;
+  maxDistance: number;
 }
 
 export interface DataContextValue {
@@ -75,7 +83,9 @@ export interface DataContextValue {
   // QR & GPS
   qrSession: QrSession;
   gpsLoading: boolean;
-  gpsLocation: { lat: number; lon: number } | null;
+  gpsLocation: { lat: number; lon: number; accuracy: number; address?: string; source: string } | null;
+  gpsAccuracyLabel: string;
+  gpsAccuracyColor: string;
 
   // Teacher eval
   evalTeacherId: string;
@@ -211,11 +221,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // QR & GPS
   const [qrSession, setQrSession] = useState<QrSession>({
-    sessionId: 'SES-2026-991', courseName: 'Matematika Sukses UTBK',
-    code: 'QR-ATTEND-MATH-2026', generatedAt: '10:00',
+    sessionId: '', courseName: 'Memuat...',
+    code: 'MEMUAT...', generatedAt: '',
+    qrImage: '', validUntil: '',
+    hqLatitude: GPS_DEFAULT.lat, hqLongitude: GPS_DEFAULT.lon, maxDistance: 20,
   });
   const [gpsLoading, setGpsLoading] = useState(false);
-  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lon: number; accuracy: number; address?: string; source: string } | null>(null);
+  const [qrFetchAttempted, setQrFetchAttempted] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
+
+  const gpsAccuracyLabel = gpsLocation ? accuracyLabel(gpsLocation.accuracy).label : '';
+  const gpsAccuracyColor = gpsLocation ? accuracyLabel(gpsLocation.accuracy).color : 'text-slate-400';
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const result = await AttendanceApi.getQrSession();
+          if (result.success && result.data && !cancelled) {
+            setQrSession({
+              sessionId: result.data.sessionId,
+              courseName: result.data.courseName,
+              code: result.data.code,
+              generatedAt: result.data.generatedAt,
+              qrImage: result.data.qrImage,
+              validUntil: result.data.validUntil,
+              hqLatitude: result.data.hqLatitude,
+              hqLongitude: result.data.hqLongitude,
+              maxDistance: result.data.maxDistance,
+            });
+          }
+        } catch {
+          // stay with default
+        } finally {
+          if (!cancelled) setQrFetchAttempted(true);
+        }
+      })();
+      return () => { cancelled = true; };
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Teacher eval
   const [evalTeacherId, setEvalTeacherId] = useState('TCH-001');
@@ -359,37 +405,92 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const simulateCheckinSiswa = useCallback(async (siswaId: string, checkInMethod: 'QR_SCAN' | 'LOKASI') => {
     if (!checkRateLimit('checkin', 300)) return;
     if (!requireRole(['ADMIN', 'GURU'], 'melakukan presensi')) return;
-    const res = await StudentsApi.checkin(siswaId, checkInMethod);
-    if (!res.success) {
-      triggerToast(res.error || 'Gagal melakukan presensi', 'warn');
-      return;
-    }
-    setSiswas((prev) => prev.map((s) => s.id === siswaId ? (res.data as Siswa) : s));
-    triggerToast(`Absensi terdeteksi via ${checkInMethod}!`, 'success');
-    addSyncLog(`Student verified attendance using ${checkInMethod}: ${(res.data as Siswa).name}`);
-  }, [setSiswas, triggerToast, addSyncLog, checkRateLimit, requireRole]);
+    try {
+      const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      let studentName = 'Siswa';
 
-  const queryBrowserGeolocation = useCallback(() => {
+      if (checkInMethod === 'QR_SCAN') {
+        if (!qrSession.code || qrSession.code === 'MEMUAT...') {
+          triggerToast('Tidak ada sesi QR aktif. Generate QR terlebih dahulu.', 'warn');
+          return;
+        }
+        const userLat = gpsLocation?.lat;
+        const userLon = gpsLocation?.lon;
+        const result = await AttendanceApi.checkinQr(siswaId, qrSession.code, userLat, userLon) as { success: boolean; data?: Siswa; error?: string; message?: string };
+        if (!result.success) {
+          triggerToast(result.error || 'Gagal presensi QR', 'warn');
+          return;
+        }
+        setSiswas((prev) => prev.map((s) => {
+          if (s.id === siswaId && result.data) {
+            studentName = s.name;
+            return { ...result.data, subjectsScore: s.subjectsScore, progressHistory: s.progressHistory };
+          }
+          return s;
+        }));
+        triggerToast(`${result.message || `Absensi via QR! Jam: ${timeNow}.`}`, 'success');
+      } else {
+        const userLat = gpsLocation?.lat || GPS_DEFAULT.lat;
+        const userLon = gpsLocation?.lon || GPS_DEFAULT.lon;
+        const result = await AttendanceApi.checkinGps(siswaId, userLat, userLon) as { success: boolean; data?: Siswa & { distance?: number }; error?: string; message?: string };
+        if (!result.success) {
+          triggerToast(result.error || 'Gagal presensi GPS', 'warn');
+          return;
+        }
+        setSiswas((prev) => prev.map((s) => {
+          if (s.id === siswaId && result.data) {
+            studentName = s.name;
+            return { ...result.data, subjectsScore: s.subjectsScore, progressHistory: s.progressHistory };
+          }
+          return s;
+        }));
+        triggerToast(`${result.message || `Absensi via GPS! Jam: ${timeNow}.`}`, 'success');
+      }
+      addSyncLog(`Student verified attendance using ${checkInMethod}: ${studentName}`);
+    } catch {
+      triggerToast('Gagal terhubung ke server presensi', 'warn');
+    }
+  }, [setSiswas, triggerToast, addSyncLog, checkRateLimit, requireRole, qrSession.code, gpsLocation]);
+
+  const queryBrowserGeolocation = useCallback(async () => {
     setGpsLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setGpsLocation({ lat: position.coords.latitude, lon: position.coords.longitude });
-          setGpsLoading(false);
-          triggerToast(`Satelit GPS sinkron! Koordinat Anda: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`, 'success');
-          addSyncLog(`Retrieved real geolocalization coordinates from client: ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
-        },
-        () => {
-          setGpsLocation(GPS_DEFAULT);
-          setGpsLoading(false);
-          triggerToast('Otorisasi GPS dibatasi atau browser offline. Menggunakan koordinat HQ Bimbel Jakarta (+/- 5m).', 'info');
-          addSyncLog('Simulated geolocation lock within school vicinity.');
-        },
+    try {
+      const loc = await getAccurateLocation((update) => {
+        setGpsLocation({
+          lat: update.lat,
+          lon: update.lon,
+          accuracy: update.accuracy,
+          address: update.address,
+          source: update.source,
+        });
+      });
+
+      setGpsLocation({
+        lat: loc.lat,
+        lon: loc.lon,
+        accuracy: loc.accuracy,
+        address: loc.address,
+        source: loc.source,
+      });
+
+      const sourceLabel = loc.source === 'gps' ? 'Satelit GPS' : loc.source === 'ip' ? 'IP Geolocation' : 'Default';
+      const accLabel = accuracyLabel(loc.accuracy);
+
+      triggerToast(
+        `${sourceLabel} sinkron! (${accLabel.label}) Koordinat: ${loc.lat.toFixed(5)}, ${loc.lon.toFixed(5)}${loc.address ? ` — ${loc.address}` : ''}`,
+        loc.source === 'default' ? 'warn' : 'success',
       );
-    } else {
-      setGpsLocation(GPS_DEFAULT);
+      addSyncLog(`GPS fix: source=${loc.source} accuracy=${loc.accuracy}m lat=${loc.lat.toFixed(4)} lon=${loc.lon.toFixed(4)}`);
+    } catch {
+      setGpsLocation({
+        lat: GPS_DEFAULT.lat,
+        lon: GPS_DEFAULT.lon,
+        accuracy: 0,
+        source: 'default',
+      });
+      triggerToast('Gagal mendapatkan lokasi. Menggunakan koordinat HQ Bimbel.', 'warn');
+    } finally {
       setGpsLoading(false);
-      triggerToast('Akses geolokasi tidak didukung oleh browser ini.', 'warn');
     }
   }, [triggerToast, addSyncLog]);
 
@@ -485,17 +586,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addSyncLog(`Toggled SPP status via API: ${targetStudent?.name}`);
   }, [siswas, setSiswas, setTransactions, triggerToast, addSyncLog, checkRateLimit, requireRole]);
 
-  const handleRegenerateQr = useCallback(() => {
+  const handleRegenerateQr = useCallback(async () => {
     if (!requireRole(['ADMIN'], 'regenerasi kode QR')) return;
-    const randCode = `QR-CLASS-${Math.floor(1000 + Math.random() * 9000)}`;
-    setQrSession({
-      sessionId: `SES-${Math.floor(2026 + Math.random() * 100)}`,
-      courseName: INITIAL_SCHEDULES[Math.floor(Math.random() * INITIAL_SCHEDULES.length)]?.classTitle ?? 'Matematika',
-      code: randCode,
-      generatedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-    });
-    triggerToast('Token Sesi QR-Attendance diperbaharui! Suku kurikulum meningkat.', 'success');
-    addSyncLog(`Generated unique QR reference session matching ${randCode}`);
+    try {
+      const result = await AttendanceApi.regenerateQrSession();
+      if (result.success && result.data) {
+        setQrSession({
+          sessionId: result.data.sessionId,
+          courseName: result.data.courseName,
+          code: result.data.code,
+          generatedAt: result.data.generatedAt,
+          qrImage: result.data.qrImage,
+          validUntil: result.data.validUntil,
+          hqLatitude: result.data.hqLatitude,
+          hqLongitude: result.data.hqLongitude,
+          maxDistance: result.data.maxDistance,
+        });
+        triggerToast(`Sesi QR baru: ${result.data.code}! Berlaku 8 jam.`, 'success');
+        addSyncLog(`Generated new QR session: ${result.data.code}`);
+      } else {
+        triggerToast(result.error || 'Gagal generate QR', 'warn');
+      }
+    } catch {
+      triggerToast('Gagal terhubung ke server', 'warn');
+    }
   }, [triggerToast, addSyncLog, requireRole]);
 
   const exportToCSV = useCallback(() => {
@@ -559,7 +673,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setQuizResult(null);
   }, []);
 
-  const value: DataContextValue = {
+  const value = useMemo<DataContextValue>(() => ({
     siswas, teachers, transactions, schedules, materis, quizzes, notifs,
     setSiswas, setTeachers, setTransactions, setMateris, setNotifs,
     activeTab, setActiveTab, selectedSiswaId, setSelectedSiswaId,
@@ -568,7 +682,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     newSiswaOpen, setNewSiswaOpen, formDataSiswa, setFormDataSiswa,
     newMateriOpen, setNewMateriOpen, formDataMateri, setFormDataMateri,
     activeQuizPlay, quizAnswers, quizResult,
-    qrSession, gpsLoading, gpsLocation,
+    qrSession, gpsLoading, gpsLocation, gpsAccuracyLabel, gpsAccuracyColor,
     evalTeacherId, setEvalTeacherId,
     pedagogicalScore, setPedagogicalScore,
     professionalScore, setProfessionalScore,
@@ -583,7 +697,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     handleRegenerateQr, handleSubmitTeacherEvaluation, exportToCSV,
     triggerAutomatedSPPNotification, triggerExamReminderNotification, handleDownloadMateri,
     toast, offlineMode, pendingSyncCount, isSyncing, syncLogs, handleSyncData, toggleOfflineMode,
-  };
+  }), [
+    siswas, teachers, transactions, schedules, materis, quizzes, notifs,
+    setSiswas, setTeachers, setTransactions, setMateris, setNotifs,
+    activeTab, selectedSiswaId, studentSearch, studentClassFilter,
+    materiSearch, materiSubjectFilter,
+    newSiswaOpen, formDataSiswa, newMateriOpen, formDataMateri,
+    activeQuizPlay, quizAnswers, quizResult,
+    qrSession, gpsLoading, gpsLocation, gpsAccuracyLabel, gpsAccuracyColor,
+    evalTeacherId, pedagogicalScore, professionalScore, socialScore, evalFeedback,
+    filteredSiswas, filteredMateris,
+    totalSPPExpected, totalSPPCollected, percentSPPCollected,
+    performanceTrendData, activeStudentName,
+    handleAddSiswa, handleAddMateri,
+    handleStartQuiz, handleSelectQuizAnswer, handleSubmitQuiz, handleCloseQuiz,
+    toggleSppPaymentStatus, simulateCheckinSiswa, queryBrowserGeolocation,
+    handleRegenerateQr, handleSubmitTeacherEvaluation, exportToCSV,
+    triggerAutomatedSPPNotification, triggerExamReminderNotification, handleDownloadMateri,
+    toast, offlineMode, pendingSyncCount, isSyncing, syncLogs, handleSyncData, toggleOfflineMode,
+  ]);
 
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>;
 }

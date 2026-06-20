@@ -1,7 +1,8 @@
 import React from 'react';
-import { Search, Plus, X, FileText, Video, Layers, Lock } from 'lucide-react';
+import { Search, Plus, X, FileText, Video, Layers, Lock, BookOpen } from 'lucide-react';
 import type { MateriBelajar, InteractiveQuiz } from '../types';
 import { sanitizeHTML } from '../utils/sanitize';
+import EmptyState from './ui/EmptyState';
 
 interface ModulPanelProps {
   filteredMateris: MateriBelajar[];
@@ -42,7 +43,7 @@ export default function ModulPanel({
 }: ModulPanelProps) {
   return (
     <div id="panel_modul" className="space-y-4 flex flex-col flex-1">
-      <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col md:flex-row gap-2.5 items-center justify-between">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm flex flex-col md:flex-row gap-2.5 items-center justify-between">
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="relative w-full md:w-64">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" />
@@ -130,7 +131,7 @@ export default function ModulPanel({
       )}
 
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-7 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+        <div className="col-span-12 lg:col-span-7 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">Sistem Repository Pembelajaran Terintegrasi Kelompok</h3>
@@ -138,7 +139,7 @@ export default function ModulPanel({
             </div>
             <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
               {filteredMateris.length === 0 ? (
-                <p className="text-[10px] text-slate-400 italic">Tidak ada materi ditemukan.</p>
+                <EmptyState icon={<BookOpen className="w-6 h-6" />} title="Tidak ada materi ditemukan" description="Coba ubah kata kunci pencarian atau filter mata pelajaran." />
               ) : filteredMateris.map((mat: MateriBelajar) => (
                 <div key={mat.id} className="p-2.5 rounded-lg border border-slate-200 flex justify-between items-center bg-slate-50/60 hover:bg-slate-50 transition text-xs">
                   <div className="flex items-center gap-2.5">
@@ -174,13 +175,15 @@ export default function ModulPanel({
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-5 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+        <div className="col-span-12 lg:col-span-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Simulasi Kuis Interaktif & Diagnostic</h3>
             {!activeQuizPlay ? (
               <div className="space-y-3">
                 <p className="text-[10px] text-slate-400">Pilih salah satu kuis aktif untuk diputar. Hasil kuis instan diintegrasikan ke sistem penilaian siswa yang terpilih di menu Ringkasan Utama.</p>
-                {quizzes.map((qz) => (
+                {quizzes.length === 0 ? (
+                <EmptyState icon={<Layers className="w-6 h-6" />} title="Belum ada kuis tersedia" description="Kuis interaktif akan ditambahkan oleh pengajar." />
+              ) : quizzes.map((qz) => (
                   <div key={qz.id} className="p-2.5 border border-slate-200 rounded-lg bg-slate-50 flex items-center justify-between text-xs transition">
                     <div>
                       <span className="font-bold text-slate-800 block text-[11px]">{qz.title}</span>

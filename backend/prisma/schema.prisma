@@ -386,3 +386,21 @@ model AuditLog {
   @@index([action, entity, createdAt])
   @@map("audit_logs")
 }
+
+model QrSession {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  courseName   String   @map("course_name")
+  validUntil   DateTime @map("valid_until")
+  hqLatitude   Float    @default(-6.2088) @map("hq_latitude")
+  hqLongitude  Float    @default(106.8456) @map("hq_longitude")
+  maxDistance  Float    @default(20.0) @map("max_distance")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([code])
+  @@index([active])
+  @@index([validUntil])
+  @@map("qr_sessions")
+}

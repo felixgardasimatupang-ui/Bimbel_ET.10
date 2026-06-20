@@ -131,8 +131,8 @@ export default function LoginPage() {
       }, 100);
       const timeout = setTimeout(() => {
         clearInterval(id);
-        setError('Google Sign-In tidak tersedia. Periksa koneksi atau coba browser lain.');
-      }, 10000);
+        setGoogleReady(false);
+      }, 3000);
       return () => { clearInterval(id); clearTimeout(timeout); };
     }
   }, [googleLogin]);
@@ -169,21 +169,21 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex relative overflow-hidden bg-slate-950">
       {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 animate-fadeIn" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent animate-fadeIn" style={{ animationDelay: '0.1s' }} />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent animate-fadeIn" style={{ animationDelay: '0.15s' }} />
 
-      {/* Geometric pattern overlay */}
-      <div className="absolute inset-0 opacity-[0.03]"
+      {/* Animated geometric pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.03] motion-safe:animate-spin-slow"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30Z' fill='none' stroke='white' stroke-width='0.5'/%3E%3C/svg%3E")`,
           backgroundSize: '60px 60px',
         }}
       />
 
-      {/* Floating gradient orbs */}
-      <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
-      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl" />
+      {/* Floating gradient orbs with animation */}
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl motion-safe:animate-spin-slow" style={{ animationDuration: '20s' }} />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl motion-safe:animate-spin-slow" style={{ animationDuration: '25s', animationDirection: 'reverse' }} />
 
       {/* Content */}
       <div className="relative w-full flex items-center justify-center p-4 lg:p-8">
@@ -208,11 +208,11 @@ export default function LoginPage() {
             </div>
 
             {/* Features grid */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 animate-stagger">
               {features.map((f) => (
                 <div
                   key={f.label}
-                  className="group flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all duration-200"
+                  className="group flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.12] hover:border-white/[0.15] hover:-translate-y-0.5 transition-all duration-300"
                 >
                   <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
                     <f.icon className="w-4 h-4 text-blue-400" />
@@ -237,7 +237,7 @@ export default function LoginPage() {
           </div>
 
           {/* ===== RIGHT: Login Card ===== */}
-          <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
+          <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto animate-slideInUp" style={{ animationDelay: '0.2s' }}>
             <div className="relative">
               {/* Card glow */}
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-2xl blur-xl" />

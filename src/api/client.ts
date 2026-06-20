@@ -1,9 +1,7 @@
 import type { Siswa, Teacher, Transaksi, MateriBelajar, Notifikasi, Schedule } from '../types';
+import { getApiBase } from '../config';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || '';
-const API_BASE = rawApiUrl
-  ? rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '') + '/api'
-  : '/api';
+const API_BASE = getApiBase();
 
 interface RequestOptions {
   method?: string;
@@ -293,6 +291,68 @@ export const NotificationsApi = {
 // Schedules API
 export const SchedulesApi = {
   list: () => apiRequest<{ data: Schedule[] }>('/schedules'),
+};
+
+// Attendance & QR Session API
+export const AttendanceApi = {
+  getQrSession: () => apiRequest<{
+    sessionId: string;
+    code: string;
+    courseName: string;
+    validUntil: string;
+    generatedAt: string;
+    qrImage: string;
+    hqLatitude: number;
+    hqLongitude: number;
+    maxDistance: number;
+  }>('/attendance/qr-session'),
+  regenerateQrSession: () => apiRequest<{
+    sessionId: string;
+    code: string;
+    courseName: string;
+    validUntil: string;
+    generatedAt: string;
+    qrImage: string;
+    hqLatitude: number;
+    hqLongitude: number;
+    maxDistance: number;
+  }>('/attendance/qr-session/regenerate', { method: 'POST' }),
+  checkinQr: (studentId: string, qrCode: string, latitude?: number, longitude?: number) =>
+    apiRequest<Siswa>('/attendance/checkin/qr', { method: 'POST', body: { studentId, qrCode, latitude, longitude } }),
+  checkinGps: (studentId: string, latitude: number, longitude: number) =>
+    apiRequest<Siswa & { distance?: number }>('/attendance/checkin/gps', { method: 'POST', body: { studentId, latitude, longitude } }),
+  getTodayAttendance: () => apiRequest<{
+    data: Array<{
+      id: string;
+      date: string;
+      status: string;
+      method: string;
+      checkInTime: string;
+      latitude: number | null;
+      longitude: number | null;
+      student: {
+        id: string;
+        name: string;
+        classLevel: string;
+        email: string;
+        avatar: string | null;
+        locationCheckedIn: boolean;
+        checkInTime: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        performanceScore: number;
+        attendanceRate: number;
+        sppStatus: string;
+      };
+    }>;
+    session: {
+      hqLatitude: number;
+      hqLongitude: number;
+      maxDistance: number;
+      code: string;
+      courseName: string;
+    } | null;
+  }>('/attendance/today'),
 };
 
 // Audit Logs API

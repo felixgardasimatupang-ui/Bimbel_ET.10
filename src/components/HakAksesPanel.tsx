@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 export default function HakAksesPanel() {
   return (
     <div id="panel_hak_akses" className="space-y-4 flex flex-col flex-1">
-      <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Matriks Ketat Kontrol Akses Peran Pengguna (RBAC)</h3>
         <p className="text-[10px] text-slate-400 mb-3.5">EduAdmin Bimbel memperkuat sistem penegakan akses demi menjaga integritas data keuangan SPP dan penilaian akademik siswa.</p>
 

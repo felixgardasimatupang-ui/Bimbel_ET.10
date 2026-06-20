@@ -1,4 +1,9 @@
+import { useState } from 'react';
 import type { Transaksi, BiayaOperasional } from '../types';
+import LoadingState from './ui/LoadingState';
+import EmptyState from './ui/EmptyState';
+import ErrorState from './ui/ErrorState';
+import { Receipt, RefreshCw } from 'lucide-react';
 
 interface SppPanelProps {
   transactions: Transaksi[];
@@ -13,13 +18,22 @@ const OPERATIONAL_COSTS: BiayaOperasional[] = [
 ];
 
 export default function SppPanel({ transactions, totalSPPCollected }: SppPanelProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const totalOperationalCost = OPERATIONAL_COSTS.reduce((sum, item) => sum + item.totalCost, 0);
   const costPerSiswaCalculated = OPERATIONAL_COSTS.reduce((sum, b) => sum + b.siswaShare, 0);
+
+  const refresh = () => {
+    setLoading(true);
+    setError(null);
+    setTimeout(() => setLoading(false), 800);
+  };
 
   return (
     <div id="panel_spp" className="space-y-4 flex flex-col flex-1">
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-7 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col">
+        <div className="col-span-12 lg:col-span-7 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between">
               <span>Sistem Manajemen Biaya Operasional Transparan Bagi Wali Murid</span>
@@ -63,12 +77,21 @@ export default function SppPanel({ transactions, totalSPPCollected }: SppPanelPr
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-5 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+        <div className="col-span-12 lg:col-span-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Buku Besar Transaksi Keuangan Bimbel</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center justify-between">
+              <span>Buku Besar Transaksi Keuangan Bimbel</span>
+              <button onClick={refresh} className="text-[10px] font-bold text-slate-500 hover:text-blue-600 transition flex items-center gap-1" aria-label="Refresh transaksi">
+                <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </h3>
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-              {transactions.length === 0 ? (
-                <p className="text-[10px] text-slate-400 italic">Belum ada transaksi.</p>
+              {loading ? (
+                <LoadingState message="Memuat transaksi..." />
+              ) : error ? (
+                <ErrorState message={error} onRetry={refresh} />
+              ) : transactions.length === 0 ? (
+                <EmptyState icon={<Receipt className="w-6 h-6" />} title="Belum ada transaksi" description="Transaksi SPP akan muncul setelah siswa melakukan pembayaran." />
               ) : transactions.map((tx: Transaksi) => (
                 <div key={tx.id} className="p-2 border border-slate-100 rounded bg-slate-50/60 hover:bg-slate-50 transition text-xs flex justify-between items-center">
                   <div>

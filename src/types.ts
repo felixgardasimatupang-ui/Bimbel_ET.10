@@ -122,6 +122,18 @@ export interface InteractiveQuiz {
   questions: QuizQuestion[];
 }
 
+export interface QrSessionData {
+  sessionId: string;
+  code: string;
+  courseName: string;
+  validUntil: string;
+  generatedAt: string;
+  qrImage: string;
+  hqLatitude: number;
+  hqLongitude: number;
+  maxDistance: number;
+}
+
 export interface AuditLog {
   id: string;
   userId: string | null;
@@ -137,4 +149,28 @@ export interface AuditLog {
     email: string;
     role: string;
   } | null;
+}
+
+export interface TodayAttendance {
+  id: string;
+  date: string;
+  status: string;
+  method: string;
+  checkInTime: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  student: {
+    id: string;
+    name: string;
+    classLevel: string;
+    email: string;
+    avatar: string | null;
+    locationCheckedIn: boolean;
+    checkInTime: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    performanceScore: number;
+    attendanceRate: number;
+    sppStatus: string;
+  };
 }

@@ -20,7 +20,7 @@ describe('SppPanel', () => {
 
   it('handles empty transactions', () => {
     render(<SppPanel transactions={[]} totalSPPCollected={0} />);
-    expect(screen.getByText('Belum ada transaksi.')).toBeInTheDocument();
+    expect(screen.getByText('Belum ada transaksi')).toBeInTheDocument();
   });
 
   it('displays correct SPP totals', () => {
@@ -31,6 +31,6 @@ describe('SppPanel', () => {
 
   it('handles zero transactions', () => {
     render(<SppPanel transactions={[]} totalSPPCollected={0} />);
-    expect(screen.getByText('Belum ada transaksi.')).toBeInTheDocument();
+    expect(screen.getByText('Belum ada transaksi')).toBeInTheDocument();
   });
 });

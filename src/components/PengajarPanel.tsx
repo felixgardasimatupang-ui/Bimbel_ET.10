@@ -28,7 +28,7 @@ export default function PengajarPanel({
   return (
     <div id="panel_pengajar" className="space-y-4 flex flex-col flex-1">
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-6 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col">
+        <div className="col-span-12 lg:col-span-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">Jadwal Sesi Pembelajaran Aktif Hari Ini</h3>
             <span className="text-[10px] text-slate-500 font-mono">{schedules.length} Sesi Terjadwal</span>
@@ -37,7 +37,7 @@ export default function PengajarPanel({
             {schedules.length === 0 ? (
               <p className="text-[10px] text-slate-400 italic">Tidak ada jadwal terdaftar.</p>
             ) : schedules.map((sch) => (
-              <div key={sch.id} className="p-2.5 rounded-lg border border-slate-200 flex justify-between items-center bg-slate-50/60 hover:bg-slate-50 transition">
+              <div key={sch.id} className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50/60 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-700/30 hover:-translate-y-0.5 transition-all duration-200">
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] font-bold text-slate-800">{sch.classTitle}</span>
@@ -61,7 +61,7 @@ export default function PengajarPanel({
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-6 bg-white border border-slate-200 rounded-lg p-3 shadow-sm flex flex-col justify-between">
+        <div className="col-span-12 lg:col-span-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Evaluasi Berkala & Efisiensi Pengajar</h3>
             <form id="evaluation_form" onSubmit={onSubmitEvaluation} className="bg-slate-50 p-2.5 rounded border border-slate-200 text-xs space-y-2.5">
@@ -112,7 +112,7 @@ export default function PengajarPanel({
               {teachers.length === 0 ? (
                 <p className="text-[10px] text-slate-400 italic">Belum ada data pengajar.</p>
               ) : teachers.map((t: Teacher) => (
-                <div key={t.id} className="p-2 border border-slate-100 rounded-lg bg-slate-100/50 text-xs flex justify-between items-center">
+                <div key={t.id} className="p-2 border border-slate-100 dark:border-slate-700 rounded-xl bg-slate-100/50 dark:bg-slate-800/30 text-xs flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-700/30 hover:-translate-y-0.5 transition-all duration-200">
                   <div className="flex items-center gap-2">
                     <AvatarWithFallback src={t.avatar} alt={`Foto ${t.name}`} className="w-8 h-8 rounded-full object-cover bg-slate-200 shrink-0" />
                     <div>

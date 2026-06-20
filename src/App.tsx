@@ -1,5 +1,6 @@
-import { lazy, Suspense, memo } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 import { DataProvider, useData } from './contexts/DataContext';
 import Toast from './components/Toast';
 import Sidebar from './components/Sidebar';
@@ -17,142 +18,27 @@ const ModulPanel = lazy(() => import('./components/ModulPanel'));
 const HakAksesPanel = lazy(() => import('./components/HakAksesPanel'));
 const AuditLogPanel = lazy(() => import('./components/AuditLogPanel'));
 
-const MemoizedRingkasanPanel = memo(RingkasanPanel);
-const MemoizedPengajarPanel = memo(PengajarPanel);
-const MemoizedSppPanel = memo(SppPanel);
-
-function SidebarSection() {
+function DashboardShell() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const {
     activeTab, setActiveTab,
     offlineMode, toggleOfflineMode,
     isSyncing, pendingSyncCount, syncLogs,
-    siswas, materis, quizzes,
-  } = useData();
-  const { user: authUser, logout } = useAuth();
-
-  return (
-    <Sidebar
-      activeTab={activeTab} setActiveTab={setActiveTab}
-      currentUserRole={authUser!.role}
-      offlineMode={offlineMode} toggleOfflineMode={toggleOfflineMode}
-      isSyncing={isSyncing} pendingSyncCount={pendingSyncCount} syncLogs={syncLogs}
-      siswaCount={siswas.length} materiCount={materis.length} quizCount={quizzes.length}
-      userName={authUser?.name || ''} onLogout={logout}
-    />
-  );
-}
-
-function HeaderSection() {
-  const {
-    offlineMode, pendingSyncCount,
-    handleSyncData, triggerAutomatedSPPNotification, triggerExamReminderNotification, exportToCSV,
-  } = useData();
-
-  return (
-    <Header
-      offlineMode={offlineMode} pendingSyncCount={pendingSyncCount}
-      onSync={handleSyncData} onSPPReminder={triggerAutomatedSPPNotification}
-      onExamReminder={triggerExamReminderNotification} onExportCSV={exportToCSV}
-    />
-  );
-}
-
-function StatsSection() {
-  const { siswas, teachers, totalSPPCollected, percentSPPCollected } = useData();
-  return (
-    <StatsStrip
-      siswas={siswas} teachers={teachers}
-      totalSPPCollected={totalSPPCollected} percentSPPCollected={percentSPPCollected}
-    />
-  );
-}
-
-function RingkasanSection() {
-  const {
-    siswas, notifs, selectedSiswaId, setSelectedSiswaId,
-    performanceTrendData, simulateCheckinSiswa, toggleSppPaymentStatus,
-  } = useData();
-  const { user } = useAuth();
-
-  return (
-    <ErrorBoundary key="ringkasan">
-      <MemoizedRingkasanPanel
-        siswas={siswas} notifs={notifs} selectedSiswaId={selectedSiswaId}
-        setSelectedSiswaId={setSelectedSiswaId} performanceTrendData={performanceTrendData}
-        onSimulateCheckin={simulateCheckinSiswa} onToggleSpp={toggleSppPaymentStatus}
-        currentUserRole={user!.role}
-      />
-    </ErrorBoundary>
-  );
-}
-
-function SiswaSection() {
-  const {
+    siswas, materis,
     filteredSiswas, selectedSiswaId, setSelectedSiswaId,
     studentSearch, setStudentSearch, studentClassFilter, setStudentClassFilter,
     newSiswaOpen, setNewSiswaOpen, formDataSiswa, setFormDataSiswa,
     handleAddSiswa, qrSession, handleRegenerateQr,
-    gpsLoading, gpsLocation, queryBrowserGeolocation,
+    gpsLoading, gpsLocation, gpsAccuracyLabel, gpsAccuracyColor,
+    queryBrowserGeolocation,
     simulateCheckinSiswa, toggleSppPaymentStatus,
-  } = useData();
-  const { user } = useAuth();
-
-  return (
-    <ErrorBoundary key="siswa">
-      <SiswaPanelProvider value={{
-        filteredSiswas, selectedSiswaId, setSelectedSiswaId,
-        studentSearch, setStudentSearch,
-        studentClassFilter, setStudentClassFilter,
-        newSiswaOpen, setNewSiswaOpen,
-        formDataSiswa, setFormDataSiswa,
-        onAddSiswa: handleAddSiswa,
-        qrSession, onRegenerateQr: handleRegenerateQr,
-        gpsLoading, gpsLocation, onGpsQuery: queryBrowserGeolocation,
-        onSimulateCheckin: simulateCheckinSiswa,
-        onToggleSpp: toggleSppPaymentStatus,
-        currentUserRole: user!.role,
-      }}>
-        <SiswaPanel />
-      </SiswaPanelProvider>
-    </ErrorBoundary>
-  );
-}
-
-function PengajarSection() {
-  const {
     teachers, schedules, evalTeacherId, setEvalTeacherId,
     pedagogicalScore, setPedagogicalScore,
     professionalScore, setProfessionalScore,
     socialScore, setSocialScore,
     evalFeedback, setEvalFeedback,
     handleSubmitTeacherEvaluation,
-  } = useData();
-
-  return (
-    <ErrorBoundary key="pengajar">
-      <MemoizedPengajarPanel
-        teachers={teachers} schedules={schedules} evalTeacherId={evalTeacherId} setEvalTeacherId={setEvalTeacherId}
-        pedagogicalScore={pedagogicalScore} setPedagogicalScore={setPedagogicalScore}
-        professionalScore={professionalScore} setProfessionalScore={setProfessionalScore}
-        socialScore={socialScore} setSocialScore={setSocialScore}
-        evalFeedback={evalFeedback} setEvalFeedback={setEvalFeedback}
-        onSubmitEvaluation={handleSubmitTeacherEvaluation}
-      />
-    </ErrorBoundary>
-  );
-}
-
-function SppSection() {
-  const { transactions, totalSPPCollected } = useData();
-  return (
-    <ErrorBoundary key="spp">
-      <MemoizedSppPanel transactions={transactions} totalSPPCollected={totalSPPCollected} />
-    </ErrorBoundary>
-  );
-}
-
-function ModulSection() {
-  const {
+    transactions, totalSPPCollected, percentSPPCollected,
     filteredMateris, materiSearch, setMateriSearch,
     materiSubjectFilter, setMateriSubjectFilter,
     newMateriOpen, setNewMateriOpen, formDataMateri, setFormDataMateri,
@@ -160,44 +46,52 @@ function ModulSection() {
     quizzes, activeQuizPlay, quizAnswers, quizResult,
     handleStartQuiz, handleSelectQuizAnswer, handleSubmitQuiz, handleCloseQuiz,
     activeStudentName,
+    notifs, performanceTrendData,
+    toast,
+    handleSyncData, triggerAutomatedSPPNotification,
+    triggerExamReminderNotification, exportToCSV,
   } = useData();
-  const { user } = useAuth();
-
-  return (
-    <ErrorBoundary key="modul">
-      <ModulPanel
-        filteredMateris={filteredMateris} materiSearch={materiSearch}
-        setMateriSearch={setMateriSearch} materiSubjectFilter={materiSubjectFilter}
-        setMateriSubjectFilter={setMateriSubjectFilter}
-        newMateriOpen={newMateriOpen} setNewMateriOpen={setNewMateriOpen}
-        formDataMateri={formDataMateri} setFormDataMateri={setFormDataMateri}
-        onAddMateri={handleAddMateri} onDownload={handleDownloadMateri}
-        quizzes={quizzes} activeQuizPlay={activeQuizPlay}
-        quizAnswers={quizAnswers} quizResult={quizResult}
-        onStartQuiz={handleStartQuiz} onSelectAnswer={handleSelectQuizAnswer}
-        onSubmitQuiz={handleSubmitQuiz} onCloseQuiz={handleCloseQuiz}
-        currentUserRole={user!.role}
-        activeStudentName={activeStudentName}
-      />
-    </ErrorBoundary>
-  );
-}
-
-function DashboardShell() {
-  const { activeTab, toast, offlineMode } = useData();
+  const { user: authUser, logout } = useAuth();
+  const { darkMode } = useTheme();
+  const currentUserRole = authUser!.role;
 
   return (
     <ErrorBoundary>
-      <div id="edu_admin_root" className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden">
+      <div id="edu_admin_root" className={`flex h-screen w-full font-sans overflow-hidden transition-colors ${
+        darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
+      }`}>
         {toast && <Toast message={toast.message} type={toast.type} />}
 
-        <SidebarSection />
+        {sidebarOpen && (
+          <div className="md:hidden fixed inset-0 bg-black/40 z-30" onClick={() => setSidebarOpen(false)} />
+        )}
 
-        <main id="main_container" className="flex-1 flex flex-col overflow-hidden">
-          <HeaderSection />
+        <div className={`${sidebarOpen ? 'block' : 'hidden'} md:block relative z-40`}>
+          <Sidebar
+            activeTab={activeTab} setActiveTab={setActiveTab}
+            currentUserRole={currentUserRole}
+            offlineMode={offlineMode} toggleOfflineMode={toggleOfflineMode}
+            isSyncing={isSyncing} pendingSyncCount={pendingSyncCount} syncLogs={syncLogs}
+            siswaCount={siswas.length} materiCount={materis.length} quizCount={quizzes.length}
+            userName={authUser?.name || ''} onLogout={logout}
+          />
+        </div>
 
-          <div id="workspace_viewport" className="p-4 space-y-4 flex-1 overflow-y-auto flex flex-col bg-slate-50/50">
-            <StatsSection />
+        <main id="main_container" className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <Header
+            offlineMode={offlineMode} pendingSyncCount={pendingSyncCount}
+            onSync={handleSyncData} onSPPReminder={triggerAutomatedSPPNotification}
+            onExamReminder={triggerExamReminderNotification} onExportCSV={exportToCSV}
+            onToggleSidebar={() => setSidebarOpen((p) => !p)}
+          />
+
+          <div id="workspace_viewport" className={`p-4 space-y-4 flex-1 overflow-y-auto flex flex-col transition-colors ${
+            darkMode ? 'bg-slate-900' : 'bg-slate-50/50'
+          }`}>
+            <StatsStrip
+              siswas={siswas} teachers={teachers}
+              totalSPPCollected={totalSPPCollected} percentSPPCollected={percentSPPCollected}
+            />
 
             <Suspense fallback={<div className="flex-1 animate-pulse space-y-3 p-4">
               <div className="h-8 bg-slate-200 rounded w-1/3" />
@@ -209,25 +103,87 @@ function DashboardShell() {
               </div>
               <div className="h-64 bg-slate-200 rounded" />
             </div>}>
-              {activeTab === 'ringkasan' && <RingkasanSection />}
-              {activeTab === 'siswa' && <SiswaSection />}
-              {activeTab === 'pengajar' && <PengajarSection />}
-              {activeTab === 'spp' && <SppSection />}
-              {activeTab === 'modul' && <ModulSection />}
-              {activeTab === 'hak_akses' && (
-                <ErrorBoundary key="hak_akses">
-                  <HakAksesPanel />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'audit' && (
-                <ErrorBoundary key="audit">
-                  <AuditLogPanel />
-                </ErrorBoundary>
-              )}
+              <ErrorBoundary key="ringkasan">
+                {activeTab === 'ringkasan' && (
+                  <RingkasanPanel
+                    siswas={siswas} notifs={notifs} selectedSiswaId={selectedSiswaId}
+                    setSelectedSiswaId={setSelectedSiswaId} performanceTrendData={performanceTrendData}
+                    onSimulateCheckin={simulateCheckinSiswa} onToggleSpp={toggleSppPaymentStatus}
+                    currentUserRole={currentUserRole}
+                  />
+                )}
+              </ErrorBoundary>
+
+              <ErrorBoundary key="siswa">
+                {activeTab === 'siswa' && (
+                  <SiswaPanelProvider value={{
+                    filteredSiswas, selectedSiswaId, setSelectedSiswaId,
+                    studentSearch, setStudentSearch,
+                    studentClassFilter, setStudentClassFilter,
+                    newSiswaOpen, setNewSiswaOpen,
+                    formDataSiswa, setFormDataSiswa,
+                    onAddSiswa: handleAddSiswa,
+                    qrSession, onRegenerateQr: handleRegenerateQr,
+                    gpsLoading, gpsLocation, gpsAccuracyLabel, gpsAccuracyColor, onGpsQuery: queryBrowserGeolocation,
+                    onSimulateCheckin: simulateCheckinSiswa,
+                    onToggleSpp: toggleSppPaymentStatus,
+                    currentUserRole,
+                  }}>
+                    <SiswaPanel />
+                  </SiswaPanelProvider>
+                )}
+              </ErrorBoundary>
+
+              <ErrorBoundary key="pengajar">
+                {activeTab === 'pengajar' && (
+                  <PengajarPanel
+                    teachers={teachers} schedules={schedules} evalTeacherId={evalTeacherId} setEvalTeacherId={setEvalTeacherId}
+                    pedagogicalScore={pedagogicalScore} setPedagogicalScore={setPedagogicalScore}
+                    professionalScore={professionalScore} setProfessionalScore={setProfessionalScore}
+                    socialScore={socialScore} setSocialScore={setSocialScore}
+                    evalFeedback={evalFeedback} setEvalFeedback={setEvalFeedback}
+                    onSubmitEvaluation={handleSubmitTeacherEvaluation}
+                  />
+                )}
+              </ErrorBoundary>
+
+              <ErrorBoundary key="spp">
+                {activeTab === 'spp' && (
+                  <SppPanel transactions={transactions} totalSPPCollected={totalSPPCollected} />
+                )}
+              </ErrorBoundary>
+
+              <ErrorBoundary key="modul">
+                {activeTab === 'modul' && (
+                  <ModulPanel
+                    filteredMateris={filteredMateris} materiSearch={materiSearch}
+                    setMateriSearch={setMateriSearch} materiSubjectFilter={materiSubjectFilter}
+                    setMateriSubjectFilter={setMateriSubjectFilter}
+                    newMateriOpen={newMateriOpen} setNewMateriOpen={setNewMateriOpen}
+                    formDataMateri={formDataMateri} setFormDataMateri={setFormDataMateri}
+                    onAddMateri={handleAddMateri} onDownload={handleDownloadMateri}
+                    quizzes={quizzes} activeQuizPlay={activeQuizPlay}
+                    quizAnswers={quizAnswers} quizResult={quizResult}
+                    onStartQuiz={handleStartQuiz} onSelectAnswer={handleSelectQuizAnswer}
+                    onSubmitQuiz={handleSubmitQuiz} onCloseQuiz={handleCloseQuiz}
+                    currentUserRole={currentUserRole}
+                    activeStudentName={activeStudentName}
+                  />
+                )}
+              </ErrorBoundary>
+
+              <ErrorBoundary key="hak_akses">
+                {activeTab === 'hak_akses' && <HakAksesPanel />}
+              </ErrorBoundary>
+              <ErrorBoundary key="audit">
+                {activeTab === 'audit' && <AuditLogPanel />}
+              </ErrorBoundary>
             </Suspense>
           </div>
 
-          <footer id="footer_bar" className="h-8 bg-slate-900 border-t border-slate-800 flex items-center px-4 justify-between shrink-0 text-[10px] text-slate-500 font-mono">
+          <footer id="footer_bar" className={`h-8 border-t flex items-center px-4 justify-between shrink-0 text-[10px] font-mono transition-colors ${
+            darkMode ? 'bg-slate-950 border-slate-800 text-slate-500' : 'bg-slate-900 border-slate-800 text-slate-500'
+          }`}>
             <div>
               STATUS INFRA: <span className="text-emerald-500 font-bold">● OPERATING OPTIMAL</span>
               {' | '}LOKASI: INDONESIA_HQ_GPS_CENTRIC

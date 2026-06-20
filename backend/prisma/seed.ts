@@ -350,6 +350,26 @@ async function main() {
   await createAuditLog({ userId: admin.id, action: AuditAction.SEED, entity: AuditEntity.notification, details: 'Seeded 3 notifications' });
 
   console.log('[SEED] Notifications created');
+
+  // QR Session default
+  const existingSession = await prisma.qrSession.findFirst({ where: { active: true } });
+  if (!existingSession) {
+    const validUntil = new Date();
+    validUntil.setHours(validUntil.getHours() + 8);
+    await prisma.qrSession.create({
+      data: {
+        code: `QR-CLASS-${Math.floor(1000 + Math.random() * 9000)}`,
+        courseName: 'Matematika Sukses UTBK',
+        validUntil,
+        hqLatitude: -6.2088,
+        hqLongitude: 106.8456,
+        maxDistance: 20.0,
+        active: true,
+      },
+    });
+    console.log('[SEED] Default QR session created');
+  }
+
   console.log('[SEED] Seed completed successfully!');
 }
 
