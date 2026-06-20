@@ -45,7 +45,7 @@
     "@types/supertest": "^7.2.0",
     "@vitest/coverage-v8": "^4.1.9",
     "get-port": "^7.2.0",
-    "prisma": "^6.6.0",
+    "prisma": "^7.8.0",
     "supertest": "^7.2.2",
     "tsx": "^4.19.0",
     "typescript": "~5.8.2",
